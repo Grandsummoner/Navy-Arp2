@@ -100,7 +100,10 @@ private:
     juce::TextButton sceneBButton;
     juce::TextButton presetButtons[8];
 
-    // Standard cross-platform integer array (prevents MSVC parser errors)
+    // Key & Scale Dropdowns (Positioned neatly inside the central OLED)
+    juce::ComboBox rootKeyBox;
+    juce::ComboBox scaleTypeBox;
+
     int presetPressStartTime[8] = { 0 };
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fader1Attachment;
@@ -123,5 +126,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> morphAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> latchAttachment;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rootKeyAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> scaleTypeAttachment;
+
+    JURE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };

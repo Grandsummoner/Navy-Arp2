@@ -11,6 +11,7 @@ namespace IDs
     DECLARE_ID(rhythmMorph); DECLARE_ID(rest); DECLARE_ID(legato);
     DECLARE_ID(entropy); DECLARE_ID(harmony); DECLARE_ID(chaos);
     DECLARE_ID(morph); DECLARE_ID(latch);
+    DECLARE_ID(rootKey); DECLARE_ID(scaleType);
     #undef DECLARE_ID
 }
 
@@ -38,7 +39,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override;
 
-    const juce::String PluginProcessor::getName() const override;
+    const juce::String getName() const override;
     bool acceptsMidi() const override;
     bool producesMidi() const override;
     bool isMidiEffect() const override;

@@ -50,7 +50,7 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 }
 
 // ==============================================================================
-// REAL-TIME DUAL-CLOCK SEQUENCER ENGINE (BLUEARP & BLEASS STANDARDS)
+// REAL-TIME DUAL-CLOCK SEQUENCER ENGINE with PITCH-QUANTIZER
 // ==============================================================================
 void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
@@ -86,7 +86,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     float activeLegato = *apvts.getRawParameterValue (IDs::legato.getParamID());
     bool isLatchActive = *apvts.getRawParameterValue (IDs::latch.getParamID()) > 0.5f;
 
-    // 3. Monitor keyboard physical Note-On/Note-Off inputs
+    // 3. Monitor physical keyboard pressed MIDI keys
     juce::MidiBuffer processedMidi;
     for (const auto metadata : midiMessages)
     {
@@ -127,15 +127,14 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         }
     }
 
-    // INDUSTRY BYPASS RULE: If DAW is stopped and LATCH is off, pass notes straight through untouched
-    if (! isPlaying && ! isLatchActive)
+    // BYPASS RULE: If DAW is stopped AND Latch is off AND no physical keys are held, bypass
+    if (! isPlaying && ! isLatchActive && activeHeldNotes.empty())
     {
         currentStep = 0;
         mLastStep = -1;
-        return; // Exits early, leaving midiMessages untouched (clean bypass)
+        return; 
     }
 
-    // If DAW is running or Latch is active, we take control of MIDI
     midiMessages.clear();
 
     const auto& notesToPlay = isLatchActive ? latchedNotes : activeHeldNotes;
@@ -157,7 +156,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     {
         if (isPlaying)
         {
-            // Clock 1: PPQ-based DAW Grid Sync (Locks tightly to DAW grid, loops, and timeline)
+            // Clock 1: PPQ-based DAW Grid Sync (DAW is playing)
             double stepLengthPPQ = 0.25;
             int stepIndex = static_cast<int> (std::floor (ppqPosition / stepLengthPPQ)) % 8;
 
@@ -170,7 +169,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         }
         else
         {
-            // Clock 2: Standalone Free-Running Sample-Clock (Runs standalone when DAW is stopped)
+            // Clock 2: Standalone Free-Running Sample-Clock (DAW is stopped but keys held/latched)
             double samplesPerBeat = mSampleRate * (60.0 / bpm);
             double stepLengthInSamples = samplesPerBeat * 0.25;
 
@@ -194,12 +193,15 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     midiMessages.swapWith (processedMidi);
 }
 
+// ==============================================================================
+// KEY & SCALE PITCH QUANTIZER (ROBUST ALGORITHMIC SCALE MAPPING)
+// ==============================================================================
 void PluginProcessor::triggerArpStep (float stepProbability, float activeRest, float activeLegato, const std::vector<int>& notesToPlay, juce::MidiBuffer& processedMidi, double bpm)
 {
     bool shouldPlay = (juce::Random::getSystemRandom().nextFloat() <= stepProbability);
     bool isRest = (juce::Random::getSystemRandom().nextFloat() <= activeRest);
 
-    if (shouldPlay && ! isRest)
+    if (shouldPlay && ! isRest && ! notesToPlay.empty())
     {
         if (mLastNotePlayed != -1)
         {
@@ -207,11 +209,31 @@ void PluginProcessor::triggerArpStep (float stepProbability, float activeRest, f
             mLastNotePlayed = -1;
         }
 
-        int pitchIndex = currentStep % notesToPlay.size();
-        int targetNote = notesToPlay[pitchIndex];
+        // 1. Get current scale parameters from UI selections
+        int rootKeyIndex = static_cast<int> (*apvts.getRawParameterValue (IDs::rootKey.getParamID()));
+        int scaleTypeIndex = static_cast<int> (*apvts.getRawParameterValue (IDs::scaleType.getParamID()));
+
+        // Scale Degree offsets (Major, Minor, Pentatonic, Dorian)
+        std::vector<int> scaleOffsets = { 0, 2, 4, 5, 7, 9, 11, 12 }; // Default Major
+        if (scaleTypeIndex == 1) // Minor
+            scaleOffsets = { 0, 2, 3, 5, 7, 8, 10, 12 };
+        else if (scaleTypeIndex == 2) // Pentatonic
+            scaleOffsets = { 0, 2, 4, 7, 9, 12, 14, 16 };
+        else if (scaleTypeIndex == 3) // Dorian
+            scaleOffsets = { 0, 2, 3, 5, 7, 9, 10, 12 };
+
+        // 2. Select base note from our chord tonal pool
+        int chordNote = notesToPlay[currentStep % notesToPlay.size()];
         
-        processedMidi.addEvent (juce::MidiMessage::noteOn (1, targetNote, static_cast<juce::uint8>(100)), 0);
-        mLastNotePlayed = targetNote;
+        // 3. Snap and quantize to the active scale degree
+        int baseOctave = (chordNote / 12) * 12;
+        int quantizedNote = baseOctave + rootKeyIndex + scaleOffsets[currentStep];
+
+        // Ensure notes stay inside valid MIDI boundaries (0–127)
+        quantizedNote = juce::jlimit (0, 127, quantizedNote);
+
+        processedMidi.addEvent (juce::MidiMessage::noteOn (1, quantizedNote, static_cast<juce::uint8>(100)), 0);
+        mLastNotePlayed = quantizedNote;
         
         double samplesPerBeat = mSampleRate * (60.0 / bpm);
         mNoteOffTime = static_cast<int>(samplesPerBeat * 0.25 * activeLegato);
@@ -330,6 +352,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::chaos, "Chaos", 0.0f, 1.0f, 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::morph, "Morph Crossfader", 0.0f, 1.0f, 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::latch, "Latch Mode", false));
+
+    // Root Key Dropdown (0 = C, 1 = C#, 2 = D...)
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rootKey, "Root Key", 
+        juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, 0));
+
+    // Scale Selector Dropdown (0 = Major, 1 = Minor, 2 = Pentatonic, 3 = Dorian)
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::scaleType, "Scale", 
+        juce::StringArray { "Major", "Natural Minor", "Pentatonic", "Dorian" }, 0));
 
     return { params.begin(), params.end() };
 }
