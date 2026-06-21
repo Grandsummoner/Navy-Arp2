@@ -3,12 +3,8 @@
 
 PluginProcessor::PluginProcessor()
     : AudioProcessor (BusesProperties()
-                      #if ! JucePlugin_IsMidiEffect
-                       #if ! JucePlugin_IsSynth
                         .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                       #endif
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                      #endif
                       ),
       apvts (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
@@ -21,14 +17,44 @@ PluginProcessor::~PluginProcessor() {}
 const juce::String PluginProcessor::getName() const { return JucePlugin_Name; }
 bool PluginProcessor::acceptsMidi() const { return true; }
 bool PluginProcessor::producesMidi() const { return true; }
-bool PluginProcessor::isMidiEffect() const { return false; }
-double PluginProcessor::getTailLengthSeconds() const { return 0.0; }
-int PluginProcessor::getNumPrograms() { return 1; }
-int PluginProcessor::getCurrentProgram() { return 0; }
-void PluginProcessor::setCurrentProgram (int index) { juce::ignoreUnused (index); }
-const juce::String PluginProcessor::getProgramName (int index) { juce::ignoreUnused (index); return {}; }
-void PluginProcessor::changeProgramName (int index, const juce::String& newName) { juce::ignoreUnused (index, newName); }
 
+bool PluginProcessor::isMidiEffect() const
+{
+    return false; // Revert to standard Instrument so Ableton allows multi-track routing
+}
+
+double PluginProcessor::getTailLengthSeconds() const
+{
+    return 0.0;
+}
+
+int PluginProcessor::getNumPrograms()
+{
+    return 1;
+}
+
+int PluginProcessor::getCurrentProgram()
+{
+    return 0;
+}
+
+void PluginProcessor::setCurrentProgram (int index)
+{
+    juce::ignoreUnused (index);
+}
+
+const juce::String PluginProcessor::getProgramName (int index)
+{
+    juce::ignoreUnused (index);
+    return {};
+}
+
+void PluginProcessor::changeProgramName (int index, const juce::String& newName)
+{
+    juce::ignoreUnused (index, newName);
+}
+
+// ==============================================================================
 void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     mSampleRate = sampleRate;
@@ -59,7 +85,8 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 // ==============================================================================
 void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::ignoreUnused (buffer);
+    // Clear audio buffer outputs to prevent NaNs/Subnormals
+    buffer.clear();
 
     // Read parameters
     float activeFaderProb[8];
