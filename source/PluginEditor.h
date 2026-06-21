@@ -82,6 +82,22 @@ public:
     void resized() override;
     void timerCallback() override;
 
+    // Custom Right-Click Preset Saving callback
+    void mouseDown (const juce::MouseEvent& event) override
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            if (event.eventComponent == &presetButtons[i])
+            {
+                if (event.mods.isRightButtonDown())
+                {
+                    processor.savePreset(i);
+                    presetButtons[i].setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF003344));
+                }
+            }
+        }
+    }
+
 private:
     PluginProcessor& processor;
     OledDisplay oledDisplay;
@@ -129,5 +145,5 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rootKeyAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> scaleTypeAttachment;
 
-    JURE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };

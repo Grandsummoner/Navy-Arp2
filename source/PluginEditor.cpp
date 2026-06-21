@@ -123,11 +123,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         presetButtons[i].setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF444444));
 
         presetButtons[i].onClick = [this, i] {
-            // Left-Click -> Recall
             processor.loadPreset(i);
         };
 
-        // Custom Mouse Listener for Right-Click -> Save
         presetButtons[i].addMouseListener (this, false);
     }
 
@@ -142,7 +140,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     scaleTypeBox.addItemList (juce::StringArray { "Major", "Minor", "Pentatonic", "Dorian" }, 1);
     scaleTypeBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xFF111111));
     scaleTypeBox.setColour (juce::ComboBox::outlineColourId, juce::Colour (0xFF222222));
-    scaleTypeBox.setColour (juce::ComboBox::textColourId, juce::Colour (0xFFxFFFFB300));
+    scaleTypeBox.setColour (juce::ComboBox::textColourId, juce::Colour (0xFFFFB300));
 
     // Parameter Bindings
     fader1Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::fader1.getParamID(), fader1);
