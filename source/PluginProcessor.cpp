@@ -1,14 +1,13 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+// ==============================================================================
+// Declare stereo inputs and outputs to satisfy Ableton's Windows VST3 scanner
+// ==============================================================================
 PluginProcessor::PluginProcessor()
     : AudioProcessor (BusesProperties()
-                      #if ! JucePlugin_IsMidiEffect
-                       #if ! JucePlugin_IsSynth
                         .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                       #endif
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                      #endif
                       ),
       apvts (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
@@ -22,7 +21,6 @@ const juce::String PluginProcessor::getName() const { return JucePlugin_Name; }
 bool PluginProcessor::acceptsMidi() const { return true; }
 bool PluginProcessor::producesMidi() const { return true; }
 
-// FORCE native MIDI Effect format so Ableton hosts us directly in the MIDI effect lane
 bool PluginProcessor::isMidiEffect() const
 {
     return true; 
@@ -74,31 +72,25 @@ void PluginProcessor::releaseResources() {}
 
 bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-    #if JucePlugin_IsMidiEffect
-        juce::ignoreUnused (layouts);
-        return true;
-    #else
-        if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-         && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
-            return false;
-        #if ! JucePlugin_IsSynth
-            if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-                return false;
-        #endif
-        return true;
-    #endif
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
+     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+
+    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+        return false;
+
+    return true;
 }
 
 // ==============================================================================
 // REAL-TIME ARPEGGIATOR MIDI CLOCK ENGINE (WITH LATCH CHORD MEMORY)
 // ==============================================================================
-void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void PluginProcessor::processBlock (juce::AudioProcessor::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+    // Do NOT clear the audio buffer. Let audio pass through completely untouched
+    juce::ignoreUnused (buffer);
 
+    // Read parameters
     float activeFaderProb[8];
     for (int i = 0; i < 8; ++i)
         activeFaderProb[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1)));
@@ -212,7 +204,6 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     midiMessages.swapWith(processedMidi);
 }
 
-// ==============================================================================
 bool PluginProcessor::hasEditor() const { return true; }
 juce::AudioProcessorEditor* PluginProcessor::createEditor() { return new PluginEditor (*this); }
 
