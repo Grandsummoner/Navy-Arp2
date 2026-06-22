@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
+#include <array>
+#include <cmath>
 
 namespace IDs 
 {
@@ -10,8 +12,8 @@ namespace IDs
     DECLARE_ID(fader5); DECLARE_ID(fader6); DECLARE_ID(fader7); DECLARE_ID(fader8);
     DECLARE_ID(rhythmMorph); DECLARE_ID(rest); DECLARE_ID(legato);
     DECLARE_ID(entropy); DECLARE_ID(harmony); DECLARE_ID(chaos);
-    DECLARE_ID(morph); DECLARE_ID(latch);
-    DECLARE_ID(rootKey); DECLARE_ID(scaleType);
+    DECLARE_ID(morph); DECLARE_ID(latch); DECLARE_ID(chordMode);
+    DECLARE_ID(rootKey); DECLARE_ID(scaleType); DECLARE_ID(cycleLength);
     #undef DECLARE_ID
 }
 
@@ -54,24 +56,32 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    // Presets & Scenes
     void savePreset (int slotIndex);
     void loadPreset (int slotIndex);
     bool isPresetSaved (int slotIndex) const { return presetSlotsSaved[slotIndex]; }
 
-    void diceMelody();
-    void diceRhythm();
-
     void captureSceneA();
     void captureSceneB();
+    void clearSceneA() { hasSceneA = false; }
+    void clearSceneB() { hasSceneB = false; }
 
-    void triggerArpStep (float stepProbability, float activeRest, float activeLegato, const std::vector<int>& notesToPlay, juce::MidiBuffer& processedMidi, double bpm);
+    // Generative Triggers
+    void diceMelody();
+    void diceRhythm();
+    void resetAccumulator();
+    void resetRhythm();
+    void triggerDiatonicChordPad (int padIndex);
 
     SceneState sceneA;
     SceneState sceneB;
     bool hasSceneA = false;
     bool hasSceneB = false;
 
+    // Real-time tracking for UI
     int currentStep = 0;
+    int currentBarInCycle = 1;
+    juce::String activeChordExtensionText = "TRIAD";
     std::vector<int> activeHeldNotes;
     std::vector<int> latchedNotes;
     bool isFirstNoteOfNewChord = true;
@@ -80,14 +90,35 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void updateLfoModulations (int numSamples, double bpm);
+    std::vector<int> generateEuclideanPattern (int steps, int pulses);
+    void scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int delaySamples);
 
     double mSampleRate = 44100.0;
-    
     int mLastStep = -1;
-    int mLastNotePlayed = -1;
-    int mNoteOffTime = 0; 
     int mTimeInSamples = 0;
+    double mSongPositionPPQ = 0.0;
     
+    // Decrementing note-off event queue (Pitch, RemainingSamples)
+    std::vector<std::pair<int, int>> scheduledNoteOffs;
+
+    // LFO internal phases
+    double lfoPhaseEntropy = 0.0;
+    double lfoPhaseChaos = 0.0;
+    double lfoPhaseMorph = 0.0;
+    double lfoPhaseLegato = 0.0;
+
+    // Modulated effective parameter values
+    float modRest = 0.1f;
+    float modLegato = 0.5f;
+    float modEntropy = 0.0f;
+    float modHarmony = 0.0f;
+    float modChaos = 0.0f;
+    float accumulatedPitchOffset = 0.0f;
+
+    // Smart Diatonic Chord voice leading cache
+    std::vector<int> lastChordPitches;
+
     SceneState presets[8];
     bool presetSlotsSaved[8] = { false };
 
