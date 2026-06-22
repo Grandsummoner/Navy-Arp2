@@ -10,6 +10,7 @@ PluginProcessor::PluginProcessor()
 {
     sceneA = SceneState();
     sceneB = SceneState();
+    lastChordPitches = { 60, 64, 67 }; // Default C major root cache
 }
 
 PluginProcessor::~PluginProcessor() {}
@@ -20,7 +21,7 @@ bool PluginProcessor::producesMidi() const { return true; }
 
 bool PluginProcessor::isMidiEffect() const
 {
-    return false; // MUST be standard Instrument to allow 2-track routing in Ableton
+    return false; // Revert to standard Instrument so Ableton allows multi-track routing
 }
 
 double PluginProcessor::getTailLengthSeconds() const
@@ -89,21 +90,17 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     // 1. Query DAW Transport State
     bool isPlaying = false;
     double bpm = 120.0;
-    double ppqPosition = 0.0;
+    mSongPositionPPQ = 0.0;
 
     if (auto* playhead = getPlayHead())
     {
         if (auto pos = playhead->getPosition())
         {
             isPlaying = pos->getIsPlaying();
-            
             auto bpmOpt = pos->getBpm();
-            if (bpmOpt.hasValue())
-                bpm = *bpmOpt;
-
+            if (bpmOpt.hasValue()) bpm = *bpmOpt;
             auto ppqOpt = pos->getPpqPosition();
-            if (ppqOpt.hasValue())
-                ppqPosition = *ppqOpt;
+            if (ppqOpt.hasValue()) mSongPositionPPQ = *ppqOpt;
         }
     }
 
@@ -189,7 +186,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         {
             // Clock 1: PPQ-based DAW Grid Sync (Locks tightly to DAW grid, loops, and timeline)
             double stepLengthPPQ = 0.25;
-            int stepIndex = static_cast<int> (std::floor (ppqPosition / stepLengthPPQ)) % 8;
+            int stepIndex = static_cast<int> (std::floor (mSongPositionPPQ / 0.25)) % 8;
 
             if (stepIndex != mLastStep)
             {
@@ -303,6 +300,7 @@ void PluginProcessor::loadPreset (int slotIndex)
 void PluginProcessor::captureSceneA()
 {
     for (int i = 0; i < 8; ++i) sceneA.faders[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1)));
+
     sceneA.rhythmMorph = *apvts.getRawParameterValue (IDs::rhythmMorph.getParamID());
     sceneA.rest = *apvts.getRawParameterValue (IDs::rest.getParamID());
     sceneA.legato = *apvts.getRawParameterValue (IDs::legato.getParamID());
@@ -315,6 +313,7 @@ void PluginProcessor::captureSceneA()
 void PluginProcessor::captureSceneB()
 {
     for (int i = 0; i < 8; ++i) sceneB.faders[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1)));
+
     sceneB.rhythmMorph = *apvts.getRawParameterValue (IDs::rhythmMorph.getParamID());
     sceneB.rest = *apvts.getRawParameterValue (IDs::rest.getParamID());
     sceneB.legato = *apvts.getRawParameterValue (IDs::legato.getParamID());
