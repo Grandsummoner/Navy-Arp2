@@ -13,6 +13,7 @@ namespace IDs
     DECLARE_ID(entropy); DECLARE_ID(harmony); DECLARE_ID(chaos);
     DECLARE_ID(morph); DECLARE_ID(latch); DECLARE_ID(chordMode);
     DECLARE_ID(rootKey); DECLARE_ID(scaleType); DECLARE_ID(cycleLength);
+    DECLARE_ID(rate); DECLARE_ID(octaves); // New parameters to complete 8-knob Faderfox map
     #undef DECLARE_ID
 }
 
@@ -80,9 +81,8 @@ public:
     int currentStep = 0;
     int currentBarInCycle = 1;
 
-    // Multi-thread safe communication
     std::atomic<bool> isCurrentlyPlayingUI { false };
-    std::atomic<int> activeChordExtensionType { 0 }; // 0 = TRIAD, 1 = SUS, 2 = 7th/9th
+    std::atomic<int> activeChordExtensionType { 0 }; 
 
     std::vector<int> activeHeldNotes;
     std::vector<int> latchedNotes;

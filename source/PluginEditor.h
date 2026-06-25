@@ -39,9 +39,13 @@ public:
         int extType = processor.activeChordExtensionType.load();
         juce::String extText = (extType == 0) ? "TRIAD" : (extType == 1) ? "SUS" : "7TH/9TH";
 
+        // Display current play speed/rate and active octaves limit
+        juce::String speedRate = processor.apvts.getParameter(IDs::rate.getParamID())->getCurrentValueAsText();
+        juce::String activeOcts = processor.apvts.getParameter(IDs::octaves.getParamID())->getCurrentValueAsText();
+
         g.setFont (juce::Font ("Consolas", 11.0f, juce::Font::plain));
         g.setColour (juce::Colour (0xFF888A90));
-        g.drawText ("KEY: " + keyName + " | SCALE: " + scaleName + " | EXTENSION: " + extText, 
+        g.drawText ("KEY: " + keyName + " | SCALE: " + scaleName + " | EXT: " + extText + " | RATE: " + speedRate + " | OCT: " + activeOcts, 
                     10, 25, getWidth() - 20, 15, juce::Justification::centred);
 
         // Real-time Step VU-meter pulse lines
@@ -116,11 +120,11 @@ private:
     juce::Slider fader1, fader2, fader3, fader4, fader5, fader6, fader7, fader8;
     juce::Label faderLabel1, faderLabel2, faderLabel3, faderLabel4, faderLabel5, faderLabel6, faderLabel7, faderLabel8;
 
-    juce::Slider rhythmMorphKnob, restKnob, legatoKnob;
-    juce::Label rhythmMorphTitle, restTitle, legatoTitle;
+    juce::Slider rhythmMorphKnob, restKnob, legatoKnob, rateKnob;
+    juce::Label rhythmMorphTitle, restTitle, legatoTitle, rateTitle;
 
-    juce::Slider entropyKnob, harmonyKnob, chaosKnob;
-    juce::Label entropyTitle, harmonyTitle, chaosTitle;
+    juce::Slider entropyKnob, harmonyKnob, chaosKnob, octavesKnob;
+    juce::Label entropyTitle, harmonyTitle, chaosTitle, octavesTitle;
 
     juce::Slider morphCrossfader;
 
@@ -150,10 +154,12 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rhythmMorphAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> restAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> legatoAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rateAttachment;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> entropyAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> harmonyAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> chaosAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> octavesAttachment;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> morphAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> latchAttachment;

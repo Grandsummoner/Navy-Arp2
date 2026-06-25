@@ -10,7 +10,7 @@ PluginProcessor::PluginProcessor()
 {
     sceneA = SceneState();
     sceneB = SceneState();
-    lastChordPitches = { 60, 64, 67 }; // Default C major root cache
+    lastChordPitches = { 60, 64, 67 }; 
 }
 
 PluginProcessor::~PluginProcessor() {}
@@ -135,7 +135,6 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     double bpm = 120.0;
     mSongPositionPPQ = 0.0;
 
-    // Cross-compilation helper for JUCE 6 / JUCE 7 playhead compatibility
 #if JUCE_MAJOR_VERSION >= 7
     if (auto* playhead = getPlayHead())
     {
@@ -229,11 +228,20 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     {
         bool stepTriggered = false;
         double samplesPerBeat = mSampleRate * (60.0 / (bpm > 0 ? bpm : 120.0));
-        double stepSamples = samplesPerBeat * 0.25;
+        
+        // Dynamically compute the rate offset based on the RATE knob
+        int rateIdx = juce::jlimit (0, 3, static_cast<int> (*apvts.getRawParameterValue (IDs::rate.getParamID())));
+        double stepLengthPPQ = 0.25; // Default 1/16
+        if (rateIdx == 0)      stepLengthPPQ = 1.0;  // 1/4 Note
+        else if (rateIdx == 1) stepLengthPPQ = 0.5;  // 1/8 Note
+        else if (rateIdx == 2) stepLengthPPQ = 0.25; // 1/16 Note
+        else if (rateIdx == 3) stepLengthPPQ = 0.125;// 1/32 Note
+
+        double stepSamples = samplesPerBeat * stepLengthPPQ;
 
         if (isPlaying)
         {
-            int stepIndex = static_cast<int> (std::floor (mSongPositionPPQ / 0.25)) % 8;
+            int stepIndex = static_cast<int> (std::floor (mSongPositionPPQ / stepLengthPPQ)) % 8;
             if (stepIndex != mLastStep)
             {
                 mLastStep = stepIndex;
@@ -290,7 +298,12 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
                 int rawPitch = notesToPlay[currentStep % notesToPlay.size()];
                 int octave = (rawPitch / 12) * 12;
-                int targetPitch = octave + rootKeyIdx + scaleOffsets[currentStep] + static_cast<int>(accumulatedPitchOffset);
+
+                // Cycle up octaves based on OCTAVES knob setting
+                int numOctaves = juce::jlimit (1, 4, static_cast<int> (*apvts.getRawParameterValue (IDs::octaves.getParamID())));
+                int octaveShiftCount = (currentStep / 2) % numOctaves; // Ascend/Shift up an octave every 2 steps
+
+                int targetPitch = octave + rootKeyIdx + scaleOffsets[currentStep] + static_cast<int>(accumulatedPitchOffset) + (octaveShiftCount * 12);
 
                 if (modChaos > 0.2f && juce::Random::getSystemRandom().nextFloat() <= modChaos)
                     targetPitch += (juce::Random::getSystemRandom().nextBool() ? 12 : -12);
@@ -331,16 +344,16 @@ void PluginProcessor::triggerDiatonicChordPad (int padIndex)
     std::vector<int> scaleOffsets;
     switch (scaleIdx)
     {
-        case 1:  scaleOffsets = { 0, 2, 3, 5, 7, 8, 10 }; break; // Natural Minor
-        case 2:  scaleOffsets = { 0, 3, 5, 7, 10, 12, 14 }; break; // Pentatonic Minor
-        case 3:  scaleOffsets = { 0, 2, 4, 7, 9, 12, 14 }; break; // Pentatonic Major
-        case 4:  scaleOffsets = { 0, 2, 3, 5, 7, 9, 10 }; break; // Dorian
-        case 5:  scaleOffsets = { 0, 1, 3, 5, 7, 8, 10 }; break; // Phrygian
-        case 6:  scaleOffsets = { 0, 2, 4, 6, 7, 9, 11 }; break; // Lydian
-        case 7:  scaleOffsets = { 0, 2, 4, 5, 7, 9, 10 }; break; // Mixolydian
-        case 8:  scaleOffsets = { 0, 2, 3, 5, 7, 8, 11 }; break; // Harmonic Minor
-        case 9:  scaleOffsets = { 0, 2, 3, 5, 7, 9, 11 }; break; // Melodic Minor
-        default: scaleOffsets = { 0, 2, 4, 5, 7, 9, 11 }; break; // Major
+        case 1:  scaleOffsets = { 0, 2, 3, 5, 7, 8, 10 }; break; 
+        case 2:  scaleOffsets = { 0, 3, 5, 7, 10, 12, 14 }; break; 
+        case 3:  scaleOffsets = { 0, 2, 4, 7, 9, 12, 14 }; break; 
+        case 4:  scaleOffsets = { 0, 2, 3, 5, 7, 9, 10 }; break; 
+        case 5:  scaleOffsets = { 0, 1, 3, 5, 7, 8, 10 }; break; 
+        case 6:  scaleOffsets = { 0, 2, 4, 6, 7, 9, 11 }; break; 
+        case 7:  scaleOffsets = { 0, 2, 4, 5, 7, 9, 10 }; break; 
+        case 8:  scaleOffsets = { 0, 2, 3, 5, 7, 8, 11 }; break; 
+        case 9:  scaleOffsets = { 0, 2, 3, 5, 7, 9, 11 }; break; 
+        default: scaleOffsets = { 0, 2, 4, 5, 7, 9, 11 }; break; 
     }
 
     auto getScalePitch = [&](int degree) -> int {
@@ -350,25 +363,25 @@ void PluginProcessor::triggerDiatonicChordPad (int padIndex)
 
     int baseRoot = 48 + rootIdx;
     int r = getScalePitch (padIndex);
-    int t = getScalePitch (padIndex + 2); // Third
-    int f = getScalePitch (padIndex + 4); // Fifth
+    int t = getScalePitch (padIndex + 2); 
+    int f = getScalePitch (padIndex + 4); 
 
     float harmonyKnobVal = *apvts.getRawParameterValue (IDs::harmony.getParamID());
     std::vector<int> newChord;
 
     if (harmonyKnobVal >= 0.34f && harmonyKnobVal < 0.67f)
     {
-        t = getScalePitch (padIndex + 3); // Sus4 chord
+        t = getScalePitch (padIndex + 3); 
         newChord = { baseRoot + r, baseRoot + t, baseRoot + f };
     }
     else if (harmonyKnobVal >= 0.67f)
     {
-        int s = getScalePitch (padIndex + 6); // 7th / 9th chord
+        int s = getScalePitch (padIndex + 6); 
         newChord = { baseRoot + r, baseRoot + t, baseRoot + f, baseRoot + s };
     }
     else
     {
-        newChord = { baseRoot + r, baseRoot + t, baseRoot + f }; // Standard Triad
+        newChord = { baseRoot + r, baseRoot + t, baseRoot + f }; 
     }
 
     if (! lastChordPitches.empty() && newChord.size() == lastChordPitches.size())
@@ -495,6 +508,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
 
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::cycleLength, "Cycle Length", 
         juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 2)); 
+
+    // New parameters to complete 8-knob hardware layout
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rate, "Rate", 
+        juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2)); // Default 1/16
+
+    params.push_back (std::make_unique<juce::AudioParameterInt> (IDs::octaves, "Octaves", 1, 4, 1)); // Default 1 Octave
 
     return { params.begin(), params.end() };
 }

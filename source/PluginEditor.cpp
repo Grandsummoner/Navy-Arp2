@@ -27,11 +27,11 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     }
 
     // Left sidebar knobs and Titles
-    juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob };
-    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle };
-    juce::String leftNames[] = { "MORPH", "REST", "LEGATO" };
+    juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
+    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
+    juce::String leftNames[] = { "MORPH", "REST", "LEGATO", "RATE" };
 
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         leftKnobs[i]->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
         leftKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 65, 16);
@@ -48,11 +48,11 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     }
 
     // Right sidebar knobs and Titles
-    juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob };
-    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle };
-    juce::String rightNames[] = { "ENTROPY", "HARMONY", "CHAOS" };
+    juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
+    juce::String rightNames[] = { "ENTROPY", "HARMONY", "CHAOS", "OCTAVES" };
 
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         rightKnobs[i]->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
         rightKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 65, 16);
@@ -189,10 +189,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     rhythmMorphAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::rhythmMorph.getParamID(), rhythmMorphKnob);
     restAttachment        = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::rest.getParamID(), restKnob);
     legatoAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::legato.getParamID(), legatoKnob);
+    rateAttachment        = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::rate.getParamID(), rateKnob);
 
     entropyAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::entropy.getParamID(), entropyKnob);
     harmonyAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::harmony.getParamID(), harmonyKnob);
     chaosAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::chaos.getParamID(), chaosKnob);
+    octavesAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::octaves.getParamID(), octavesKnob);
 
     morphAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::morph.getParamID(), morphCrossfader);
     latchAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::latch.getParamID(), latchButton);
@@ -202,7 +204,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     scaleTypeAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::scaleType.getParamID(), scaleTypeBox);
     cycleLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::cycleLength.getParamID(), cycleLengthBox);
 
-    setSize (750, 480);
+    setSize (780, 520); // Scaled slightly wider/taller for maximum layout breathing room
     startTimerHz (30);
 }
 
@@ -281,7 +283,7 @@ void PluginEditor::timerCallback()
 
     if (processor.hasSceneB)
     {
-        sceneBButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFFFB300));
+        sceneBButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFFFAA00));
         sceneBButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF000000));
     }
     else
@@ -308,12 +310,18 @@ void PluginEditor::timerCallback()
 
 void PluginEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xFF141416));
-    g.setColour (juce::Colour (0xFF232326));
+    // Dark industrial metallic background
+    g.fillAll (juce::Colour (0xFF16181F));
+    
+    // Symmetrical steel panel divider lines
+    g.setColour (juce::Colour (0xFF2A2E3D));
     g.drawRect (getLocalBounds().toFloat(), 3.0f);
+    
+    // Horizontal groove line separating upper controls plate from bottom faders plate
+    g.drawHorizontalLine (getHeight() - 175, 15.0f, getWidth() - 15.0f);
 
     g.setFont (juce::Font (12.0f, juce::Font::bold));
-    g.setColour (juce::Colour (0xFF55555c));
+    g.setColour (juce::Colour (0xFF55555C));
     g.drawText ("RHYTHM", 15, 12, 100, 20, juce::Justification::left);
     g.drawText ("GENERATOR", getWidth() - 115, 12, 100, 20, juce::Justification::right);
 }
@@ -349,16 +357,16 @@ void PluginEditor::resized()
 
     area.removeFromBottom (15);
 
-    // 3. Sidebars (Increased width to 105 for spaciousness)
-    auto leftSidebar = area.removeFromLeft (105);
-    auto rightSidebar = area.removeFromRight (105);
+    // 3. Sidebars (increased width to 110 for perfect spacing)
+    auto leftSidebar = area.removeFromLeft (110);
+    auto rightSidebar = area.removeFromRight (110);
     
-    // Left Sidebar: Title labels + knobs + stacked buttons [CRITICAL FIX]
-    int leftRowHeight = leftSidebar.getHeight() / 4;
-    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle };
-    juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob };
+    // Left Sidebar: 4 Knobs (Morph, Rest, Legato, Rate) + Vertical Buttons [CRITICAL FIX]
+    int leftRowHeight = leftSidebar.getHeight() / 5;
+    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
+    juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
     
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         auto row = leftSidebar.removeFromTop (leftRowHeight);
         leftTitles[i]->setBounds (row.removeFromTop (16));
@@ -370,12 +378,12 @@ void PluginEditor::resized()
     latchButton.setBounds (leftBtnArea.removeFromTop (leftBtnHeight).reduced (2));
     chordModeButton.setBounds (leftBtnArea.reduced (2));
 
-    // Right Sidebar: Title labels + knobs + stacked buttons [CRITICAL FIX]
-    int rightRowHeight = rightSidebar.getHeight() / 4;
-    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle };
-    juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob };
+    // Right Sidebar: 4 Knobs (Entropy, Harmony, Chaos, Octaves) + Vertical Buttons [CRITICAL FIX]
+    int rightRowHeight = rightSidebar.getHeight() / 5;
+    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
+    juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
     
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         auto row = rightSidebar.removeFromTop (rightRowHeight);
         rightTitles[i]->setBounds (row.removeFromTop (16));
