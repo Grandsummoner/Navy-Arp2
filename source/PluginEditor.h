@@ -54,13 +54,13 @@ public:
         g.saveState();
         g.addTransform (juce::AffineTransform::rotation (angle).translated (toX, toY));
         
-        // Solid Neon Indicator [5]
+        // Solid Neon Pointer [5]
         g.setColour (accentCol);
         g.fillPath (pointerPath);
         
-        // 3D plastic glossy reflection on pointer cap [5]
+        // Glossy Highlights on Pointer Cap (Using strokePath instead of drawPath) [5]
         g.setColour (juce::Colours::white.withAlpha (0.35f));
-        g.drawPath (pointerPath, juce::PathStrokeType (0.7f));
+        g.strokePath (pointerPath, juce::PathStrokeType (0.7f)); // Fixes C2039: 'drawPath' is not a member of 'juce::Graphics' [5]
         g.restoreState();
 
         // 5. Matte Center Cap dome [5]
@@ -133,9 +133,9 @@ public:
 
             if (i == processor.currentStep && isPlaying)
             {
-                if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); 
-                else if (i == 4) g.setColour (juce::Colour (0xFFFF4C4C)); 
-                else             g.setColour (juce::Colour (0xFF00FFFF)); 
+                if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); // Beat 1: Neon Green
+                else if (i == 4) g.setColour (juce::Colour (0xFFFF4C4C)); // Beat 2: Neon Red
+                else             g.setColour (juce::Colour (0xFF00FFFF)); // Others: Cyan
                 g.fillRect (bar.expanded(1, 1));
             }
             else
@@ -181,7 +181,6 @@ public:
 private:
     PluginProcessor& processor;
     OledDisplay oledDisplay;
-    ChromaCapsLookAndFeel chromaLookAndFeel; // Custom rubber-cap style pointer knobs [5]
 
     juce::Slider fader1, fader2, fader3, fader4, fader5, fader6, fader7, fader8;
     juce::Label faderLabel1, faderLabel2, faderLabel3, faderLabel4, faderLabel5, faderLabel6, faderLabel7, faderLabel8;
