@@ -21,7 +21,6 @@ public:
                            float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
                            juce::Slider& slider) override
     {
-        // Keep the knob circle slightly padded [5]
         auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (8.0f);
         auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) / 2.0f;
         auto toX = bounds.getCentreX();
@@ -60,7 +59,7 @@ public:
         
         // Glossy Highlights on Pointer Cap (Using strokePath instead of drawPath) [5]
         g.setColour (juce::Colours::white.withAlpha (0.35f));
-        g.strokePath (pointerPath, juce::PathStrokeType (0.7f)); // Fixes C2039: 'drawPath' is not a member of 'juce::Graphics' [5]
+        g.strokePath (pointerPath, juce::PathStrokeType (0.7f)); 
         g.restoreState();
 
         // 5. Matte Center Cap dome [5]
@@ -181,6 +180,7 @@ public:
 private:
     PluginProcessor& processor;
     OledDisplay oledDisplay;
+    ChromaCapsLookAndFeel chromaLookAndFeel; // Custom rubber-cap style pointer knobs [5]
 
     juce::Slider fader1, fader2, fader3, fader4, fader5, fader6, fader7, fader8;
     juce::Label faderLabel1, faderLabel2, faderLabel3, faderLabel4, faderLabel5, faderLabel6, faderLabel7, faderLabel8;
