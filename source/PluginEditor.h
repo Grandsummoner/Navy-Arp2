@@ -7,6 +7,72 @@
 #include "PluginProcessor.h"
 
 // ==============================================================================
+// Custom DJ TechTools / Chroma Caps Style Rotary LookAndFeel [5]
+// ==============================================================================
+class ChromaCapsLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    ChromaCapsLookAndFeel()
+    {
+        setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
+    }
+
+    void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height, 
+                           float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
+                           juce::Slider& slider) override
+    {
+        // Keep the knob circle slightly padded [5]
+        auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (8.0f);
+        auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) / 2.0f;
+        auto toX = bounds.getCentreX();
+        auto toY = bounds.getCentreY();
+
+        // 1. Subtle drop shadow beneath the rubber cap [5]
+        g.setColour (juce::Colour (0x45000000));
+        g.fillEllipse (toX - radius + 2.0f, toY - radius + 4.0f, radius * 2.0f, radius * 2.0f);
+
+        // 2. Matte rubberized cylindrical body (3D Gradient for roundness) [5]
+        juce::Colour rubberBaseCol = juce::Colour (0xFF1A1C24); 
+        juce::ColourGradient grad (rubberBaseCol.brighter (0.12f), toX, toY - radius, 
+                                   rubberBaseCol.darker (0.25f), toX, toY + radius, false);
+        g.setGradientFill (grad);
+        g.fillEllipse (toX - radius, toY - radius, radius * 2.0f, radius * 2.0f);
+
+        // 3. Highlighted outer lip edge of the cap
+        g.setColour (juce::Colour (0xFF2D313D));
+        g.drawEllipse (toX - radius, toY - radius, radius * 2.0f, radius * 2.0f, 1.0f);
+
+        // 4. Colored rubber indicator pointer strip (Iconic Chroma Cap high-visibility neon needle) [5]
+        float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
+        auto accentCol = slider.findColour (juce::Slider::rotarySliderFillColourId);
+
+        juce::Path pointerPath;
+        float pointerLength = radius * 0.95f;
+        float pointerThickness = radius * 0.16f;
+        pointerPath.addRoundedRectangle (-pointerThickness * 0.5f, -pointerLength, pointerThickness, pointerLength, pointerThickness * 0.3f);
+
+        g.saveState();
+        g.addTransform (juce::AffineTransform::rotation (angle).translated (toX, toY));
+        
+        // Solid Neon Indicator [5]
+        g.setColour (accentCol);
+        g.fillPath (pointerPath);
+        
+        // 3D plastic glossy reflection on pointer cap [5]
+        g.setColour (juce::Colours::white.withAlpha (0.35f));
+        g.drawPath (pointerPath, juce::PathStrokeType (0.7f));
+        g.restoreState();
+
+        // 5. Matte Center Cap dome [5]
+        float centerRadius = radius * 0.38f;
+        g.setColour (rubberBaseCol.darker (0.5f));
+        g.fillEllipse (toX - centerRadius, toY - centerRadius, centerRadius * 2.0f, centerRadius * 2.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.05f));
+        g.fillEllipse (toX - centerRadius, toY - centerRadius - 2.0f, centerRadius * 2.0f, centerRadius * 1.5f);
+    }
+};
+
+// ==============================================================================
 // Active OLED Display with lock-free atomic visual synchronization
 // ==============================================================================
 class OledDisplay : public juce::Component, public juce::Timer
@@ -23,8 +89,8 @@ public:
 
     void paint (juce::Graphics& g) override
     {
-        g.fillAll (juce::Colour (0xFF0A0A0C)); // Deep hardware black
-        g.setColour (juce::Colour (0xFF1A2B3C)); // Subtle blue-grey frame border
+        g.fillAll (juce::Colour (0xFF0A0A0C)); 
+        g.setColour (juce::Colour (0xFF1A2B3C)); 
         g.drawRect (getLocalBounds().toFloat(), 2.0f);
 
         g.setColour (juce::Colour (0xFF00D2FF));
@@ -39,7 +105,6 @@ public:
         int extType = processor.activeChordExtensionType.load();
         juce::String extText = (extType == 0) ? "TRIAD" : (extType == 1) ? "SUS" : "7TH/9TH";
 
-        // Display current play speed/rate and active octaves limit
         juce::String speedRate = processor.apvts.getParameter(IDs::rate.getParamID())->getCurrentValueAsText();
         juce::String activeOcts = processor.apvts.getParameter(IDs::octaves.getParamID())->getCurrentValueAsText();
 
@@ -50,7 +115,7 @@ public:
 
         // Real-time Step VU-meter pulse lines
         auto area = getLocalBounds().reduced (15);
-        area.removeFromTop (35); // Space for OLED header text
+        area.removeFromTop (35); 
         int barWidth = area.getWidth() / 8;
         int spacing = 6;
 
@@ -68,9 +133,9 @@ public:
 
             if (i == processor.currentStep && isPlaying)
             {
-                if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); // Beat 1: Neon Green
-                else if (i == 4) g.setColour (juce::Colour (0xFFFF4C4C)); // Beat 2: Neon Red
-                else             g.setColour (juce::Colour (0xFF00FFFF)); // Others: Cyan
+                if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); 
+                else if (i == 4) g.setColour (juce::Colour (0xFFFF4C4C)); 
+                else             g.setColour (juce::Colour (0xFF00FFFF)); 
                 g.fillRect (bar.expanded(1, 1));
             }
             else
@@ -116,6 +181,7 @@ public:
 private:
     PluginProcessor& processor;
     OledDisplay oledDisplay;
+    ChromaCapsLookAndFeel chromaLookAndFeel; // Custom rubber-cap style pointer knobs [5]
 
     juce::Slider fader1, fader2, fader3, fader4, fader5, fader6, fader7, fader8;
     juce::Label faderLabel1, faderLabel2, faderLabel3, faderLabel4, faderLabel5, faderLabel6, faderLabel7, faderLabel8;

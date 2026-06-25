@@ -301,7 +301,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
                 // Cycle up octaves based on OCTAVES knob setting
                 int numOctaves = juce::jlimit (1, 4, static_cast<int> (*apvts.getRawParameterValue (IDs::octaves.getParamID())));
-                int octaveShiftCount = (currentStep / 2) % numOctaves; // Ascend/Shift up an octave every 2 steps
+                int octaveShiftCount = (currentStep / 2) % numOctaves; // Ascend up an octave every 2 steps
 
                 int targetPitch = octave + rootKeyIdx + scaleOffsets[currentStep] + static_cast<int>(accumulatedPitchOffset) + (octaveShiftCount * 12);
 
@@ -509,7 +509,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::cycleLength, "Cycle Length", 
         juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 2)); 
 
-    // New parameters to complete 8-knob hardware layout
+    // New parameters mapped to the UC4 top encoders
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rate, "Rate", 
         juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2)); // Default 1/16
 

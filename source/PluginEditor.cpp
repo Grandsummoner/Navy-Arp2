@@ -26,7 +26,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         addAndMakeVisible (faderLabels[i]);
     }
 
-    // Left sidebar knobs and Titles
+    // Left sidebar knobs and Titles (Registered to Custom Chroma Cap LookAndFeel) [5]
     juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
     juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
     juce::String leftNames[] = { "MORPH", "REST", "LEGATO", "RATE" };
@@ -35,19 +35,18 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     {
         leftKnobs[i]->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
         leftKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 65, 16);
-        leftKnobs[i]->setColour (juce::Slider::rotarySliderFillColourId, juce::Colour (0xFF00D2FF));
-        leftKnobs[i]->setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
-        leftKnobs[i]->setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xFF888888));
+        leftKnobs[i]->setColour (juce::Slider::rotarySliderFillColourId, juce::Colour (0xFF00D2FF)); // Electric Blue Marker [5]
+        leftKnobs[i]->setLookAndFeel (&chromaLookAndFeel); // Attach LookAndFeel
         addAndMakeVisible (leftKnobs[i]);
 
         leftTitles[i]->setText (leftNames[i], juce::dontSendNotification);
         leftTitles[i]->setFont (juce::Font (10.0f, juce::Font::bold));
         leftTitles[i]->setJustificationType (juce::Justification::centred);
-        leftTitles[i]->setColour (juce::Label::textColourId, juce::Colour (0xFF55555c));
+        leftTitles[i]->setColour (juce::Label::textColourId, juce::Colour (0xFF55555C));
         addAndMakeVisible (leftTitles[i]);
     }
 
-    // Right sidebar knobs and Titles
+    // Right sidebar knobs and Titles (Registered to Custom Chroma Cap LookAndFeel) [5]
     juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
     juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
     juce::String rightNames[] = { "ENTROPY", "HARMONY", "CHAOS", "OCTAVES" };
@@ -56,15 +55,14 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     {
         rightKnobs[i]->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
         rightKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 65, 16);
-        rightKnobs[i]->setColour (juce::Slider::rotarySliderFillColourId, juce::Colour (0xFFFFB300));
-        rightKnobs[i]->setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
-        rightKnobs[i]->setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xFF888888));
+        rightKnobs[i]->setColour (juce::Slider::rotarySliderFillColourId, juce::Colour (0xFFFFB300)); // Amber Glow Marker [5]
+        rightKnobs[i]->setLookAndFeel (&chromaLookAndFeel); // Attach LookAndFeel
         addAndMakeVisible (rightKnobs[i]);
 
         rightTitles[i]->setText (rightNames[i], juce::dontSendNotification);
         rightTitles[i]->setFont (juce::Font (10.0f, juce::Font::bold));
         rightTitles[i]->setJustificationType (juce::Justification::centred);
-        rightTitles[i]->setColour (juce::Label::textColourId, juce::Colour (0xFF55555c));
+        rightTitles[i]->setColour (juce::Label::textColourId, juce::Colour (0xFF55555C));
         addAndMakeVisible (rightTitles[i]);
     }
 
@@ -204,7 +202,11 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     scaleTypeAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::scaleType.getParamID(), scaleTypeBox);
     cycleLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::cycleLength.getParamID(), cycleLengthBox);
 
-    setSize (780, 520); // Scaled slightly wider/taller for maximum layout breathing room
+    // Dynamic Sizing Initializations [4]
+    setResizable (true, true);
+    setResizeLimits (700, 460, 1400, 920);
+    setSize (850, 560); // Default startup size grew larger [4]
+    
     startTimerHz (30);
 }
 
@@ -212,6 +214,17 @@ PluginEditor::~PluginEditor()
 { 
     stopTimer(); 
     
+    // Safety unregister custom LookAndFeel references to avoid dangling pointer crashes
+    rhythmMorphKnob.setLookAndFeel (nullptr);
+    restKnob.setLookAndFeel (nullptr);
+    legatoKnob.setLookAndFeel (nullptr);
+    rateKnob.setLookAndFeel (nullptr);
+    
+    entropyKnob.setLookAndFeel (nullptr);
+    harmonyKnob.setLookAndFeel (nullptr);
+    chaosKnob.setLookAndFeel (nullptr);
+    octavesKnob.setLookAndFeel (nullptr);
+
     diceMelodyButton.onClick = nullptr;
     diceRhythmButton.onClick = nullptr;
     sceneAButton.onClick = nullptr;
@@ -318,7 +331,7 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawRect (getLocalBounds().toFloat(), 3.0f);
     
     // Horizontal groove line separating upper controls plate from bottom faders plate
-    g.drawHorizontalLine (getHeight() - 175, 15.0f, getWidth() - 15.0f);
+    g.drawHorizontalLine (getHeight() - static_cast<int>(getHeight() * 0.22f), 15.0f, getWidth() - 15.0f);
 
     g.setFont (juce::Font (12.0f, juce::Font::bold));
     g.setColour (juce::Colour (0xFF55555C));
@@ -330,9 +343,14 @@ void PluginEditor::resized()
 {
     auto area = getLocalBounds().reduced (15);
 
-    // 1. Bottom Section: 8 Scale-Degree Faders
-    auto bottomArea = area.removeFromBottom (115);
-    auto faderLabelArea = bottomArea.removeFromBottom (20);
+    // Get current proportional dimensions to compute responsive coordinates [4]
+    int totalWidth = getWidth();
+    int totalHeight = getHeight();
+
+    // 1. Bottom Section: 8 Scale-Degree Faders (Vertical footprint reduced by 20% to leave room for dials) [1]
+    int bottomHeight = static_cast<int>(totalHeight * 0.17f); 
+    auto bottomArea = area.removeFromBottom (bottomHeight);
+    auto faderLabelArea = bottomArea.removeFromBottom (16);
     int faderWidth = bottomArea.getWidth() / 8;
     
     juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
@@ -341,7 +359,7 @@ void PluginEditor::resized()
     for (int i = 0; i < 8; ++i)
     {
         auto column = bottomArea.removeFromLeft (faderWidth);
-        faders[i]->setBounds (column.reduced (6, 0));
+        faders[i]->setBounds (column.reduced (juce::jmax (2, faderWidth / 8), 0));
         
         auto labelColumn = faderLabelArea.removeFromLeft (faderWidth);
         faderLabels[i]->setBounds (labelColumn);
@@ -350,18 +368,20 @@ void PluginEditor::resized()
     area.removeFromBottom (10);
 
     // 2. Scene Morph Crossfader
-    auto morphArea = area.removeFromBottom (35);
+    int morphHeight = static_cast<int>(totalHeight * 0.07f);
+    auto morphArea = area.removeFromBottom (juce::jlimit (25, 45, morphHeight));
     sceneAButton.setBounds (morphArea.removeFromLeft (45).reduced (0, 3));
     sceneBButton.setBounds (morphArea.removeFromRight (45).reduced (0, 3));
     morphCrossfader.setBounds (morphArea.reduced (15, 5));
 
     area.removeFromBottom (15);
 
-    // 3. Sidebars (increased width to 110 for perfect spacing)
-    auto leftSidebar = area.removeFromLeft (110);
-    auto rightSidebar = area.removeFromRight (110);
+    // 3. Sidebars (Width scaled proportionally at 15% of total editor layout width) [4]
+    int sidebarWidth = static_cast<int>(totalWidth * 0.15f); 
+    auto leftSidebar = area.removeFromLeft (sidebarWidth);
+    auto rightSidebar = area.removeFromRight (sidebarWidth);
     
-    // Left Sidebar: 4 Knobs (Morph, Rest, Legato, Rate) + Vertical Buttons [CRITICAL FIX]
+    // Left Sidebar: 4 Knobs (Morph, Rest, Legato, Rate) + Vertical Buttons [4]
     int leftRowHeight = leftSidebar.getHeight() / 5;
     juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
     juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
@@ -378,7 +398,7 @@ void PluginEditor::resized()
     latchButton.setBounds (leftBtnArea.removeFromTop (leftBtnHeight).reduced (2));
     chordModeButton.setBounds (leftBtnArea.reduced (2));
 
-    // Right Sidebar: 4 Knobs (Entropy, Harmony, Chaos, Octaves) + Vertical Buttons [CRITICAL FIX]
+    // Right Sidebar: 4 Knobs (Entropy, Harmony, Chaos, Octaves) + Vertical Buttons [4]
     int rightRowHeight = rightSidebar.getHeight() / 5;
     juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
     juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
@@ -395,12 +415,14 @@ void PluginEditor::resized()
     diceMelodyButton.setBounds (diceArea.removeFromTop (diceBtnHeight).reduced (2));
     diceRhythmButton.setBounds (diceArea.reduced (2));
 
-    // 4. Center Section: Dropdown Bar, OLED Display, and 8 Preset Buttons
-    auto presetArea = area.removeFromBottom (32);
+    // 4. Center Section: Dropdown Bar, OLED Display, and 8 Preset Buttons [4]
+    int presetHeight = static_cast<int>(totalHeight * 0.06f);
+    auto presetArea = area.removeFromBottom (juce::jlimit (24, 36, presetHeight));
     auto oledArea = area.reduced (5, 5);
     
-    // Separate Dropdown Bar above OLED Screen to prevent graphic overlap [CRITICAL FIX]
-    auto dropdownBarArea = oledArea.removeFromTop (35);
+    // Proportional Dropdown Bar positioned safely above the graphic display
+    int dropdownBarHeight = static_cast<int>(totalHeight * 0.07f);
+    auto dropdownBarArea = oledArea.removeFromTop (juce::jlimit (28, 40, dropdownBarHeight));
     int dropdownWidth = dropdownBarArea.getWidth() / 3;
     
     rootKeyBox.setBounds (dropdownBarArea.removeFromLeft (dropdownWidth).reduced (6, 2));
