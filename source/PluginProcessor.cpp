@@ -35,8 +35,7 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const 
 
 std::vector<int> PluginProcessor::generateEuclideanPattern (int steps, int pulses)
 {
-    std::vector<int> pattern(steps, 0);
-    if (pulses <= 0) return pattern;
+    std::vector<int> pattern(steps, 0); if (pulses <= 0) return pattern;
     if (pulses >= steps) { std::fill(pattern.begin(), pattern.end(), 1); return pattern; }
     int bucket = 0;
     for (int i = 0; i < steps; ++i) { bucket += pulses; if (bucket >= steps) { bucket -= steps; pattern[i] = 1; } }
@@ -45,14 +44,11 @@ std::vector<int> PluginProcessor::generateEuclideanPattern (int steps, int pulse
 
 void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
 {
-    double samplesPerBeat = mSampleRate * (60.0 / (bpm > 0 ? bpm : 120.0));
-    double sampleDelta = numSamples;
-
+    double samplesPerBeat = mSampleRate * (60.0 / (bpm > 0 ? bpm : 120.0)); double sampleDelta = numSamples;
     int cycleIndex = juce::jlimit (0, 3, static_cast<int> (*apvts.getRawParameterValue (IDs::cycleLength.getParamID())));
     int cycleBars = (cycleIndex == 0) ? 1 : (cycleIndex == 1) ? 2 : (cycleIndex == 2) ? 4 : 8;
     currentBarInCycle = (static_cast<int>(std::floor(mSongPositionPPQ / 4.0)) % cycleBars) + 1;
 
-    // Bipolar Entropy Accumulator
     float baseEntropy = *apvts.getRawParameterValue (IDs::entropy.getParamID());
     int stepInterval = (std::abs(baseEntropy) <= 0.33f) ? 1 : (std::abs(baseEntropy) <= 0.66f) ? 2 : 4;
     if (currentStep == 0 && mLastStep == 7) {
@@ -61,7 +57,6 @@ void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
         if (currentBarInCycle == 1) accumulatedPitchOffset = 0.0f;
     }
 
-    // Capture user manual edits and write them directly to the focused background target [NEW]
     int focusedA = activeSceneAIndex.load(), focusedB = activeSceneBIndex.load(), focusSide = editFocusSide.load();
     auto updateFocusValue = [&](juce::ParameterID baseId, int lfoIndex, juce::ParameterID rateId, juce::ParameterID depthId, int index) {
         float val = *apvts.getRawParameterValue (baseId.getParamID());
@@ -85,7 +80,6 @@ void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
     updateFocusValue (IDs::octaves,     7, IDs::octavesLfoRate,     IDs::octavesLfoDepth,     15);
     for (int i = 0; i < 8; ++i) updateFocusValue (juce::ParameterID ("fader" + juce::String (i + 1), 1), i, IDs::rhythmMorphLfoRate, IDs::rhythmMorphLfoDepth, i);
 
-    // 8-Channel LFO Modulation Matrix Lambda
     auto applyLfo = [&](int index, juce::ParameterID baseId, juce::ParameterID rateId, juce::ParameterID depthId, float minVal, float maxVal) -> float {
         float baseVal = *apvts.getRawParameterValue (baseId.getParamID());
         int rateChoice = static_cast<int> (*apvts.getRawParameterValue (rateId.getParamID()));
@@ -93,8 +87,7 @@ void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
         if (rateChoice == 0) return baseVal;
         double divPPQ = (rateChoice == 1) ? 1.0 : (rateChoice == 2) ? 0.5 : (rateChoice == 3) ? 0.25 : 0.125;
         double periodSamples = samplesPerBeat * divPPQ;
-        lfoPhases[index] += (sampleDelta / periodSamples);
-        if (lfoPhases[index] >= 1.0) lfoPhases[index] -= 1.0;
+        lfoPhases[index] += (sampleDelta / periodSamples); if (lfoPhases[index] >= 1.0) lfoPhases[index] -= 1.0;
         float sineVal = static_cast<float> (std::sin (lfoPhases[index] * juce::MathConstants<double>::twoPi));
         return juce::jlimit (minVal, maxVal, baseVal + (sineVal * depth * ((maxVal - minVal) * 0.5f)));
     };
@@ -121,8 +114,7 @@ void PluginProcessor::scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int de
 
 void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    buffer.clear();
-    bool isPlaying = false; double bpm = 120.0; mSongPositionPPQ = 0.0;
+    buffer.clear(); bool isPlaying = false; double bpm = 120.0; mSongPositionPPQ = 0.0;
 #if JUCE_MAJOR_VERSION >= 7
     if (auto* playhead = getPlayHead()) {
         if (auto pos = playhead->getPosition()) {
@@ -162,8 +154,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             if (activeHeldNotes.empty()) isFirstNoteOfNewChord = true;
         }
     }
-    midiMessages.clear();
-    const auto& notesToPlay = isLatchActive ? latchedNotes : activeHeldNotes;
+    midiMessages.clear(); const auto& notesToPlay = isLatchActive ? latchedNotes : activeHeldNotes;
     isCurrentlyPlayingUI.store (!notesToPlay.empty());
 
     if (! notesToPlay.empty()) {
@@ -199,8 +190,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                 int octave = (rawPitch / 12) * 12;
                 int targetPitch = octave + rootKeyIdx + scaleOffsets[currentStep] + static_cast<int>(accumulatedPitchOffset) + (((currentStep / 2) % activeOctavesVal) * 12);
                 if (modChaos > 0.2f && juce::Random::getSystemRandom().nextFloat() <= modChaos) targetPitch += (juce::Random::getSystemRandom().nextBool() ? 12 : -12);
-                targetPitch = juce::jlimit(0, 127, targetPitch);
-                int durationSamples = static_cast<int>(stepSamples * modLegato);
+                targetPitch = juce::jlimit(0, 127, targetPitch); int durationSamples = static_cast<int>(stepSamples * modLegato);
 
                 processedMidi.addEvent (juce::MidiMessage::noteOn (1, targetPitch, static_cast<juce::uint8>(100)), 0);
                 mLastNotePlayed = targetPitch; mNoteOffTime = durationSamples; scheduleNoteOff (processedMidi, targetPitch, durationSamples);
@@ -242,7 +232,6 @@ void PluginProcessor::triggerDiatonicChordPad (int padIndex)
     latchedNotes = newChord; apvts.getParameter(IDs::latch.getParamID())->setValueNotifyingHost(1.0f); 
 }
 
-// Compact unified Scene save/load functions [NEW]
 void PluginProcessor::savePreset (int slotIndex) { if (slotIndex >= 0 && slotIndex < 8) { for (int i = 0; i < 8; ++i) presets[slotIndex].faders[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1))); presets[slotIndex].rhythmMorph = *apvts.getRawParameterValue (IDs::rhythmMorph.getParamID()); presets[slotIndex].rest = *apvts.getRawParameterValue (IDs::rest.getParamID()); presets[slotIndex].legato = *apvts.getRawParameterValue (IDs::legato.getParamID()); presets[slotIndex].entropy = *apvts.getRawParameterValue (IDs::entropy.getParamID()); presets[slotIndex].harmony = *apvts.getRawParameterValue (IDs::harmony.getParamID()); presets[slotIndex].chaos = *apvts.getRawParameterValue (IDs::chaos.getParamID()); presetSlotsSaved[slotIndex] = true; } }
 void PluginProcessor::loadPreset (int slotIndex) { if (slotIndex >= 0 && slotIndex < 8 && presetSlotsSaved[slotIndex]) { apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost (presets[slotIndex].rhythmMorph); apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost (presets[slotIndex].rest); apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost (presets[slotIndex].legato); apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost (presets[slotIndex].entropy); apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost (presets[slotIndex].harmony); apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost (presets[slotIndex].chaos); for (int i = 0; i < 8; ++i) apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (presets[slotIndex].faders[i]); } }
 void PluginProcessor::captureSceneA() { for (int i = 0; i < 8; ++i) sceneA.faders[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1))); sceneA.rhythmMorph = *apvts.getRawParameterValue (IDs::rhythmMorph.getParamID()); sceneA.rest = *apvts.getRawParameterValue (IDs::rest.getParamID()); sceneA.legato = *apvts.getRawParameterValue (IDs::legato.getParamID()); sceneA.entropy = *apvts.getRawParameterValue (IDs::entropy.getParamID()); sceneA.harmony = *apvts.getRawParameterValue (IDs::harmony.getParamID()); sceneA.chaos = *apvts.getRawParameterValue (IDs::chaos.getParamID()); hasSceneA = true; }
@@ -250,7 +239,33 @@ void PluginProcessor::captureSceneB() { for (int i = 0; i < 8; ++i) sceneB.fader
 void PluginProcessor::resetAccumulator() { accumulatedPitchOffset = 0.0f; }
 void PluginProcessor::resetRhythm() { apvts.getParameter(IDs::rhythmMorph.getParamID())->setValueNotifyingHost(0.0f); }
 
-// Compressed unified 4x4 scene load and save implementations [5] [NEW]
+void PluginProcessor::diceMelody() {
+    auto* r = &juce::Random::getSystemRandom();
+    for (int i = 1; i <= 8; ++i) apvts.getParameter ("fader" + juce::String(i))->setValueNotifyingHost (r->nextFloat());
+}
+
+void PluginProcessor::diceRhythm() {
+    auto* r = &juce::Random::getSystemRandom();
+    apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost (r->nextFloat());
+    apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost (r->nextFloat() * 0.5f);
+    apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost (0.2f + r->nextFloat() * 0.8f);
+}
+
+void PluginProcessor::diceActiveScene()
+{
+    auto* random = &juce::Random::getSystemRandom();
+    int focusedA = activeSceneAIndex.load(), focusedB = activeSceneBIndex.load(), focusSide = editFocusSide.load();
+    auto randomizeScene = [&](SceneState& scene) {
+        for (int i = 0; i < 8; ++i) scene.faders[i] = random->nextFloat();
+        scene.rhythmMorph = random->nextFloat(); scene.rest = random->nextFloat() * 0.5f; scene.legato = 0.2f + random->nextFloat() * 0.8f;
+        scene.entropy = -1.0f + random->nextFloat() * 2.0f; scene.harmony = random->nextFloat(); scene.chaos = random->nextFloat();
+        scene.rate = static_cast<float> (random->nextInt (4)); scene.octaves = static_cast<float> (1 + random->nextInt (4));
+        for (int i = 0; i < 8; ++i) { scene.lfoRates[i] = random->nextInt (5); scene.lfoDepths[i] = random->nextFloat() * 0.5f; }
+    };
+    if (focusSide == 0) { randomizeScene (sceneAPresets[focusedA]); sceneASlotsSaved[focusedA] = true; loadSceneA (focusedA); }
+    else { randomizeScene (sceneBPresets[focusedB]); sceneBSlotsSaved[focusedB] = true; loadSceneB (focusedB); }
+}
+
 void PluginProcessor::saveScene (int slotIndex, int side) {
     SceneState& s = (side == 0) ? sceneAPresets[slotIndex] : sceneBPresets[slotIndex];
     for (int i = 0; i < 8; ++i) s.faders[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1)));
@@ -274,3 +289,46 @@ void PluginProcessor::loadScene (int slotIndex, int side) {
     for (int i = 0; i < 8; ++i) { apvts.getParameter (rates[i].getParamID())->setValueNotifyingHost (static_cast<float>(s.lfoRates[i]) / 4.0f); apvts.getParameter (depths[i].getParamID())->setValueNotifyingHost (s.lfoDepths[i]); }
     for (int i = 0; i < 8; ++i) apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (s.faders[i]);
 }
+
+juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    for (int i = 1; i <= 8; ++i)
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("fader" + juce::String (i), 1), "Fader " + juce::String (i), 0.0f, 1.0f, 0.5f));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::rhythmMorph, "Rhythm Morph", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::rest, "Rest", 0.0f, 1.0f, 0.1f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::legato, "Legato", 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::entropy, "Entropy", -1.0f, 1.0f, 0.0f)); 
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::harmony, "Harmony", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::chaos, "Chaos", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::morph, "Morph Crossfader", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (IDs::latch, "Latch Mode", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (IDs::chordMode, "Chord Mode", false));
+
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rootKey, "Root Key", juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, 0));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::scaleType, "Scale", juce::StringArray { "Major", "Natural Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" }, 1));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::cycleLength, "Cycle Length", juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 2)); 
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rate, "Rate", juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2)); 
+    params.push_back (std::make_unique<juce::AudioParameterInt> (IDs::octaves, "Octaves", 1, 4, 1)); 
+
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::panelTheme, "Panel Theme", juce::StringArray { "Navy Cyber", "Skyline Eurorack", "Monochrome Minimal", "Matrix Terminal" }, 0));
+
+    auto registerLfoParams = [&](juce::ParameterID rateId, juce::ParameterID depthId, juce::String name) {
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (rateId, name + " LFO Speed", juce::StringArray { "Off", "1/4", "1/8", "1/16", "1/32" }, 0));
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (depthId, name + " LFO Depth", 0.0f, 1.0f, 0.0f));
+    };
+
+    registerLfoParams (IDs::rhythmMorphLfoRate, IDs::rhythmMorphLfoDepth, "Morph");
+    registerLfoParams (IDs::restLfoRate,        IDs::restLfoDepth,        "Rest");
+    registerLfoParams (IDs::legatoLfoRate,      IDs::legatoLfoDepth,      "Legato");
+    registerLfoParams (IDs::rateLfoRate,        IDs::rateLfoDepth,        "Rate");
+    registerLfoParams (IDs::entropyLfoRate,     IDs::entropyLfoDepth,     "Entropy");
+    registerLfoParams (IDs::harmonyLfoRate,     IDs::harmonyLfoDepth,     "Harmony");
+    registerLfoParams (IDs::chaosLfoRate,       IDs::chaosLfoDepth,       "Chaos");
+    registerLfoParams (IDs::octavesLfoRate,     IDs::octavesLfoDepth,     "Octaves");
+
+    return { params.begin(), params.end() };
+}
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new PluginProcessor(); }
