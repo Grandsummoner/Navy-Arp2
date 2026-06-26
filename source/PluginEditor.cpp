@@ -6,6 +6,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 {
     addAndMakeVisible (oledDisplay);
 
+    // Register active parameter listener for the Theme switcher [3] [NEW]
+    processor.apvts.addParameterListener ("panelTheme", this);
+
     // Bottom faders (Linear Chroma Customization) [5]
     juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     juce::Label* faderLabels[] = { &faderLabel1, &faderLabel2, &faderLabel3, &faderLabel4, &faderLabel5, &faderLabel6, &faderLabel7, &faderLabel8 };
@@ -222,6 +225,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 PluginEditor::~PluginEditor() 
 { 
     stopTimer(); 
+
+    // Unregister the Parameter Listener to prevent dangling pointer crashes [3] [NEW]
+    processor.apvts.removeParameterListener ("panelTheme", this);
     
     // Safety unregister custom LookAndFeel references on all rotary knobs [5]
     rhythmMorphKnob.setLookAndFeel (nullptr);
@@ -254,6 +260,28 @@ PluginEditor::~PluginEditor()
         presetButtons[i].onClick = nullptr;
         presetButtons[i].onStateChange = nullptr;
         presetButtons[i].removeMouseListener(this); 
+    }
+}
+
+// Thread-safe async Parameter Listener callback to trigger immediate UI redraw [3] [NEW]
+void PluginEditor::parameterChanged (const juce::String& parameterID, float newValue)
+{
+    juce::ignoreUnused (newValue);
+    
+    if (parameterID == "panelTheme")
+    {
+        // DAW automation can trigger parameter updates on the audio thread.
+        // We must push the repaint commands safely onto the Main GUI Message Thread. [3] [NEW]
+        juce::MessageManager::callAsync ([this]() {
+            repaint();
+            oledDisplay.repaint();
+            
+            fader1.repaint(); fader2.repaint(); fader3.repaint(); fader4.repaint();
+            fader5.repaint(); fader6.repaint(); fader7.repaint(); fader8.repaint();
+            
+            rhythmMorphKnob.repaint(); restKnob.repaint(); legatoKnob.repaint(); rateKnob.repaint();
+            entropyKnob.repaint(); harmonyKnob.repaint(); chaosKnob.repaint(); octavesKnob.repaint();
+        });
     }
 }
 
@@ -499,6 +527,9 @@ void PluginEditor::resized()
     auto area = getLocalBounds().reduced (15);
     int totalWidth = getWidth();
     int totalHeight = getHeight();
+
+    // 0. Carve out a 25px top margin so panel headers don't overlap with the top knob row [CRITICAL FIX] [NEW]
+    area.removeFromTop (25);
 
     // 1. Bottom Section: 8 Scale-Degree Faders (Faders vertical scale reduced by 20%)
     int bottomHeight = static_cast<int>(totalHeight * 0.17f); 

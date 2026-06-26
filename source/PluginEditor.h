@@ -24,7 +24,7 @@ struct AppTheme
     static AppTheme get (int index)
     {
         AppTheme t;
-        if (index == 1) // Skyline Eurorack (Light Beige)
+        if (index == 1) // Skyline Eurorack (Light Beige Panel)
         {
             t.background    = juce::Colour (0xFFE2E0D8);
             t.border        = juce::Colour (0xFFB8B5AB);
@@ -404,7 +404,9 @@ private:
 };
 
 // ==============================================================================
-class PluginEditor : public juce::AudioProcessorEditor, public juce::Timer
+class PluginEditor : public juce::AudioProcessorEditor, 
+                     public juce::Timer,
+                     public juce::AudioProcessorValueTreeState::Listener // Inherit from Parameter Listener [3] [NEW]
 {
 public:
     PluginEditor (PluginProcessor&);
@@ -415,6 +417,9 @@ public:
     void timerCallback() override;
 
     void mouseDown (const juce::MouseEvent& event) override;
+
+    // Trigger instant GUI repaint when active theme parameter is changed [3] [NEW]
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
 
 private:
     PluginProcessor& processor;
