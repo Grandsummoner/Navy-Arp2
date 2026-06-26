@@ -88,31 +88,19 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (latchButton);
     latchButton.setButtonText ("LATCH");
     latchButton.setClickingTogglesState (true);
-    latchButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF112233));
-    latchButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF00D2FF));
-    latchButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xFF00D2FF));
-    latchButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xFF000000));
 
     // Chords toggle
     addAndMakeVisible (chordModeButton);
     chordModeButton.setButtonText ("CHORDS");
     chordModeButton.setClickingTogglesState (true);
-    chordModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF141416));
-    chordModeButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFFFB300));
-    chordModeButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xFFFFB300));
-    chordModeButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xFF000000));
 
     // DICE Buttons
     addAndMakeVisible (diceMelodyButton);
     diceMelodyButton.setButtonText ("DICE MELODY");
-    diceMelodyButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF221100));
-    diceMelodyButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFFFB300));
     diceMelodyButton.onClick = [this] { processor.diceMelody(); };
 
     addAndMakeVisible (diceRhythmButton);
     diceRhythmButton.setButtonText ("DICE RHYTHM");
-    diceRhythmButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF221100));
-    diceRhythmButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFFFB300));
     diceRhythmButton.onClick = [this] { processor.diceRhythm(); };
 
     // Symmetrical Octatrack Scene Buttons initialization [5]
@@ -147,14 +135,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (saveButton);
     saveButton.setButtonText ("SAVE");
     saveButton.setClickingTogglesState (true);
-    saveButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF151518));
-    saveButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xFFFFAA00)); // Glowing Amber
-    saveButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xFF000000));
-    saveButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFFFAA00));
     saveButton.onClick = [this] {
         if (saveButton.getToggleState()) {
             recallButton.setToggleState (false, juce::dontSendNotification);
-            recallButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF151518));
         }
     };
 
@@ -162,14 +145,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     recallButton.setButtonText ("RECALL");
     recallButton.setClickingTogglesState (true);
     recallButton.setToggleState (true, juce::dontSendNotification); // Default state active [5]
-    recallButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF005577)); // Glowing Cyan
-    recallButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xFF00D2FF));
-    recallButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xFF000000));
-    recallButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF00D2FF));
     recallButton.onClick = [this] {
         if (recallButton.getToggleState()) {
             saveButton.setToggleState (false, juce::dontSendNotification);
-            saveButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF151518));
         }
     };
 
@@ -191,22 +169,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     // Configure Key & Scale Dropdowns
     addAndMakeVisible (rootKeyBox);
-    rootKeyBox.addItemList (juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, 1);
-    rootKeyBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xFF111111));
-    rootKeyBox.setColour (juce::ComboBox::outlineColourId, juce::Colour (0xFF222222));
-    rootKeyBox.setColour (juce::ComboBox::textColourId, juce::Colour (0xFF00D2FF));
-
     addAndMakeVisible (scaleTypeBox);
-    scaleTypeBox.addItemList (juce::StringArray { "Major", "Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" }, 1);
-    scaleTypeBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xFF111111));
-    scaleTypeBox.setColour (juce::ComboBox::outlineColourId, juce::Colour (0xFF222222));
-    scaleTypeBox.setColour (juce::ComboBox::textColourId, juce::Colour (0xFFFFB300));
-
     addAndMakeVisible (cycleLengthBox);
+
+    rootKeyBox.addItemList (juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, 1);
+    scaleTypeBox.addItemList (juce::StringArray { "Major", "Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" }, 1);
     cycleLengthBox.addItemList (juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 1);
-    cycleLengthBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xFF111111));
-    cycleLengthBox.setColour (juce::ComboBox::outlineColourId, juce::Colour (0xFF222222));
-    cycleLengthBox.setColour (juce::ComboBox::textColourId, juce::Colour (0xFFFFB300));
 
     // Parameter Bindings
     fader1Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::fader1.getParamID(), fader1);
@@ -455,9 +423,7 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
                 
                 // Safety Auto-reset back to Recall mode [5]
                 saveButton.setToggleState (false, juce::dontSendNotification);
-                saveButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF151518));
                 recallButton.setToggleState (true, juce::dontSendNotification);
-                recallButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF005577));
             }
             else // Tap-to-Reload or Tap-to-Select [5]
             {
@@ -487,9 +453,7 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
                 
                 // Safety Auto-reset back to Recall mode [5]
                 saveButton.setToggleState (false, juce::dontSendNotification);
-                saveButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF151518));
                 recallButton.setToggleState (true, juce::dontSendNotification);
-                recallButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF005577));
             }
             else // Tap-to-Reload or Tap-to-Select [5]
             {
@@ -571,11 +535,90 @@ void PluginEditor::timerCallback()
     for (int i = 0; i < 8; ++i)
         faderLabels[i]->setColour (juce::Label::textColourId, t.textDim);
 
-    // Dynamic LED toggle colors for main buttons
-    latchButton.setColour (juce::TextButton::textColourOffId, t.leftAccent);
-    chordModeButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
-    diceMelodyButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
-    diceRhythmButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+    // Dynamic Knob value textbox contrast calibration
+    juce::Slider* knobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+    for (auto* knob : knobs)
+    {
+        knob->setColour (juce::Slider::textBoxTextColourId, (themeIdx == 1) ? juce::Colour (0xFF1A1A18) : juce::Colour (0xFFE0E0E0));
+        knob->setColour (juce::Slider::textBoxBackgroundColourId, (themeIdx == 1) ? juce::Colour (0x20000000) : juce::Colour (0x20FFFFFF));
+    }
+
+    // Dynamic ComboBox Contrast Calibration
+    rootKeyBox.setColour (juce::ComboBox::backgroundColourId, themeIdx == 1 ? juce::Colour (0xFFD4D1C9) : juce::Colour (0xFF111111));
+    rootKeyBox.setColour (juce::ComboBox::outlineColourId, themeIdx == 1 ? juce::Colour (0xFFB8B5AB) : juce::Colour (0xFF222222));
+    rootKeyBox.setColour (juce::ComboBox::textColourId, themeIdx == 1 ? juce::Colour (0xFF1A1A18) : t.leftAccent);
+    rootKeyBox.setColour (juce::ComboBox::arrowColourId, themeIdx == 1 ? juce::Colour (0xFF1A1A18) : t.leftAccent);
+
+    scaleTypeBox.setColour (juce::ComboBox::backgroundColourId, themeIdx == 1 ? juce::Colour (0xFFD4D1C9) : juce::Colour (0xFF111111));
+    scaleTypeBox.setColour (juce::ComboBox::outlineColourId, themeIdx == 1 ? juce::Colour (0xFFB8B5AB) : juce::Colour (0xFF222222));
+    scaleTypeBox.setColour (juce::ComboBox::textColourId, themeIdx == 1 ? juce::Colour (0xFF1A1A18) : t.rightAccent);
+    scaleTypeBox.setColour (juce::ComboBox::arrowColourId, themeIdx == 1 ? juce::Colour (0xFF1A1A18) : t.rightAccent);
+
+    cycleLengthBox.setColour (juce::ComboBox::backgroundColourId, themeIdx == 1 ? juce::Colour (0xFFD4D1C9) : juce::Colour (0xFF111111));
+    cycleLengthBox.setColour (juce::ComboBox::outlineColourId, themeIdx == 1 ? juce::Colour (0xFFB8B5AB) : juce::Colour (0xFF222222));
+    cycleLengthBox.setColour (juce::ComboBox::textColourId, themeIdx == 1 ? juce::Colour (0xFF1A1A18) : t.rightAccent);
+    cycleLengthBox.setColour (juce::ComboBox::arrowColourId, themeIdx == 1 ? juce::Colour (0xFF1A1A18) : t.rightAccent);
+
+    // Dynamic LED and background colors for main buttons
+    if (themeIdx == 1) // Skyline Eurorack (Light Beige Panel)
+    {
+        latchButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFD4D1C9));
+        latchButton.setColour (juce::TextButton::buttonOnColourId, t.leftAccent);
+        latchButton.setColour (juce::TextButton::textColourOnId, juce::Colours::white);
+        latchButton.setColour (juce::TextButton::textColourOffId, t.leftAccent);
+
+        chordModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFD4D1C9));
+        chordModeButton.setColour (juce::TextButton::buttonOnColourId, t.rightAccent);
+        chordModeButton.setColour (juce::TextButton::textColourOnId, juce::Colours::white);
+        chordModeButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+
+        diceMelodyButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFD4D1C9));
+        diceMelodyButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+        
+        diceRhythmButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFD4D1C9));
+        diceRhythmButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+    }
+    else // Dark Themes
+    {
+        latchButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF112233));
+        latchButton.setColour (juce::TextButton::buttonOnColourId, t.leftAccent);
+        latchButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xFF000000));
+        latchButton.setColour (juce::TextButton::textColourOffId, t.leftAccent);
+
+        chordModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF141416));
+        chordModeButton.setColour (juce::TextButton::buttonOnColourId, t.rightAccent);
+        chordModeButton.setColour (juce::TextButton::textColourOnId, juce::Colour (0xFF000000));
+        chordModeButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+
+        diceMelodyButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF221100));
+        diceMelodyButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+
+        diceRhythmButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF221100));
+        diceRhythmButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+    }
+
+    // Dynamic Save/Recall Button Contrast Calibration
+    juce::Colour unselectedBtnCol = (themeIdx == 1) ? juce::Colour (0xFFD4D1C9) : juce::Colour (0xFF151518);
+    juce::Colour saveActiveCol = t.rightAccent; 
+    juce::Colour recallActiveCol = t.leftAccent; 
+
+    saveButton.setColour (juce::TextButton::buttonOnColourId, saveActiveCol);
+    saveButton.setColour (juce::TextButton::textColourOnId, (themeIdx == 1) ? juce::Colours::white : juce::Colours::black);
+    saveButton.setColour (juce::TextButton::textColourOffId, saveActiveCol);
+
+    recallButton.setColour (juce::TextButton::buttonOnColourId, recallActiveCol);
+    recallButton.setColour (juce::TextButton::textColourOnId, (themeIdx == 1) ? juce::Colours::white : juce::Colours::black);
+    recallButton.setColour (juce::TextButton::textColourOffId, recallActiveCol);
+
+    if (saveButton.getToggleState())
+        saveButton.setColour (juce::TextButton::buttonColourId, saveActiveCol);
+    else
+        saveButton.setColour (juce::TextButton::buttonColourId, unselectedBtnCol);
+
+    if (recallButton.getToggleState())
+        recallButton.setColour (juce::TextButton::buttonColourId, recallActiveCol);
+    else
+        recallButton.setColour (juce::TextButton::buttonColourId, unselectedBtnCol);
 
     // Synchronize 4x4 Octatrack Scene button LED states dynamically [5]
     int currentActiveA = processor.activeSceneAIndex.load();
@@ -644,7 +687,7 @@ void PluginEditor::timerCallback()
         }
         else
         {
-            presetButtons[i].setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF141416));
+            presetButtons[i].setColour (juce::TextButton::buttonColourId, themeIdx == 1 ? juce::Colour (0xFFD4D1C9) : juce::Colour (0xFF141416));
             presetButtons[i].setColour (juce::TextButton::textColourOffId, t.textDim);
         }
     }
@@ -777,15 +820,18 @@ void PluginEditor::resized()
     auto dropdownBarArea = oledArea.removeFromTop (juce::jlimit (28, 40, dropdownBarHeight));
     int totalCenterWidth = dropdownBarArea.getWidth();
     
-    // Distribute space symmetrically
-    int selectWidth = (totalCenterWidth - 140) / 3;
-    rootKeyBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (3, 2));
-    cycleLengthBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (3, 2));
-    scaleTypeBox.setBounds (dropdownBarArea.reduced (6, 2));
+    // Distribute space symmetrically and resolve overlap bugs [RESTORATION]
+    int systemButtonWidth = 70;
+    int availableWidthForComboBoxes = totalCenterWidth - (systemButtonWidth * 2) - 20; 
+    int selectWidth = availableWidthForComboBoxes / 3;
+
+    rootKeyBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (2, 2));
+    scaleTypeBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (2, 2));
+    cycleLengthBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (2, 2));
     
-    // Latch and Chords button placements next to the dropdowns
-    latchButton.setBounds (dropdownBarArea.removeFromLeft (65).reduced (2, 2));
-    chordModeButton.setBounds (dropdownBarArea.reduced (2, 2));
+    dropdownBarArea.removeFromLeft (20); // Spacing gap before system buttons
+    latchButton.setBounds (dropdownBarArea.removeFromLeft (systemButtonWidth).reduced (2, 2));
+    chordModeButton.setBounds (dropdownBarArea.removeFromLeft (systemButtonWidth).reduced (2, 2));
     
     oledDisplay.setBounds (oledArea.reduced (0, 5));
 

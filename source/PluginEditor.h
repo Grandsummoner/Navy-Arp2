@@ -30,7 +30,7 @@ struct AppTheme
             t.border        = juce::Colour (0xFFB8B5AB);
             t.leftAccent    = juce::Colour (0xFFFF3B30); // Eurorack Red LED
             t.rightAccent   = juce::Colour (0xFF3A3A38); // Matte Charcoal
-            t.textDim       = juce::Colour (0xFF4C4C4A);
+            t.textDim       = juce::Colour (0xFF1A1A18); // Calibrated dark grey for high contrast
             t.trackBg       = juce::Colour (0xFFD4D1C9);
             t.slotOutline   = juce::Colour (0xFFA8A59C);
             t.faderCap      = juce::Colour (0xFF1E1E1E);
