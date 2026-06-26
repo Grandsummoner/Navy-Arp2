@@ -36,6 +36,7 @@ void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     activeHeldNotes.clear();
     latchedNotes.clear();
     scheduledNoteOffs.clear();
+    std::fill (std::begin (lfoPhases), std::end (lfoPhases), 0.0);
     isFirstNoteOfNewChord = true;
     juce::ignoreUnused (samplesPerBlock);
 }
@@ -100,19 +101,55 @@ void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
         if (currentBarInCycle == 1) accumulatedPitchOffset = 0.0f;
     }
 
-    // Curated LFOs
-    lfoPhaseLegato += (sampleDelta / (samplesPerBar * 2.0)); 
-    if (lfoPhaseLegato >= 1.0) lfoPhaseLegato -= 1.0;
-    modLegato = *apvts.getRawParameterValue (IDs::legato.getParamID()) + 0.2f * static_cast<float>(std::sin(lfoPhaseLegato * juce::MathConstants<double>::twoPi));
-    modLegato = juce::jlimit(0.1f, 1.0f, modLegato);
+    // Modern 8-Channel LFO Modulation Matrix Lambda [NEW]
+    auto applyLfo = [&](int index, juce::ParameterID baseId, juce::ParameterID rateId, juce::ParameterID depthId, float minVal, float maxVal) -> float {
+        float baseVal = *apvts.getRawParameterValue (baseId.getParamID());
+        int rateChoice = static_cast<int> (*apvts.getRawParameterValue (rateId.getParamID()));
+        float depth = *apvts.getRawParameterValue (depthId.getParamID());
+        
+        if (rateChoice == 0) // Off
+            return baseVal;
+            
+        double divPPQ = 0.25; 
+        if (rateChoice == 1)      divPPQ = 1.0;   // 1/4 Note
+        else if (rateChoice == 2) divPPQ = 0.5;   // 1/8 Note
+        else if (rateChoice == 3) divPPQ = 0.25;  // 1/16 Note
+        else if (rateChoice == 4) divPPQ = 0.125; // 1/32 Note
+        
+        double periodSamples = samplesPerBeat * divPPQ;
+        lfoPhases[index] += (sampleDelta / periodSamples);
+        if (lfoPhases[index] >= 1.0) lfoPhases[index] -= 1.0;
+        
+        float sineVal = static_cast<float> (std::sin (lfoPhases[index] * juce::MathConstants<double>::twoPi));
+        float range = maxVal - minVal;
+        float mod = (sineVal * depth * (range * 0.5f));
+        return juce::jlimit (minVal, maxVal, baseVal + mod);
+    };
 
-    modRest = *apvts.getRawParameterValue (IDs::rest.getParamID());
-    modHarmony = *apvts.getRawParameterValue (IDs::harmony.getParamID());
-    modChaos = *apvts.getRawParameterValue (IDs::chaos.getParamID());
+    // Calculate dynamic modulated active values used in DSP and rendered on GUI [NEW]
+    activeMorph   = applyLfo (0, IDs::rhythmMorph, IDs::rhythmMorphLfoRate, IDs::rhythmMorphLfoDepth, 0.0f, 1.0f);
+    activeRest    = applyLfo (1, IDs::rest,        IDs::restLfoRate,        IDs::restLfoDepth,        0.0f, 1.0f);
+    
+    // Map continuous legato modulation onto boundaries [NEW]
+    activeLegato  = applyLfo (2, IDs::legato,      IDs::legatoLfoRate,      IDs::legatoLfoDepth,      0.1f, 1.0f);
+    modLegato = activeLegato;
+    modRest = activeRest;
 
-    if (modHarmony < 0.34f) activeChordExtensionType.store(0);
-    else if (modHarmony >= 0.34f && modHarmony < 0.67f) activeChordExtensionType.store(1);
-    else activeChordExtensionType.store(2);
+    // Modulate and round discrete parameters Rate and Octaves [NEW]
+    float rawRate = applyLfo (3, IDs::rate, IDs::rateLfoRate, IDs::rateLfoDepth, 0.0f, 3.0f);
+    activeRateIdx = juce::jlimit (0, 3, static_cast<int> (std::round (rawRate)));
+
+    activeEntropy = applyLfo (4, IDs::entropy,     IDs::entropyLfoRate,     IDs::entropyLfoDepth,     -1.0f, 1.0f);
+    modEntropy = activeEntropy;
+
+    activeHarmony = applyLfo (5, IDs::harmony,     IDs::harmonyLfoRate,     IDs::harmonyLfoDepth,     0.0f, 1.0f);
+    modHarmony = activeHarmony;
+
+    activeChaos   = applyLfo (6, IDs::chaos,       IDs::chaosLfoRate,       IDs::chaosLfoDepth,       0.0f, 1.0f);
+    modChaos = activeChaos;
+
+    float rawOctaves = applyLfo (7, IDs::octaves, IDs::octavesLfoRate, IDs::octavesLfoDepth, 1.0f, 4.0f);
+    activeOctavesVal = juce::jlimit (1, 4, static_cast<int> (std::round (rawOctaves)));
 }
 
 void PluginProcessor::scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int delaySamples)
@@ -229,13 +266,12 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         bool stepTriggered = false;
         double samplesPerBeat = mSampleRate * (60.0 / (bpm > 0 ? bpm : 120.0));
         
-        // Dynamically compute the rate offset based on the RATE knob
-        int rateIdx = juce::jlimit (0, 3, static_cast<int> (*apvts.getRawParameterValue (IDs::rate.getParamID())));
-        double stepLengthPPQ = 0.25; // Default 1/16
-        if (rateIdx == 0)      stepLengthPPQ = 1.0;  // 1/4 Note
-        else if (rateIdx == 1) stepLengthPPQ = 0.5;  // 1/8 Note
-        else if (rateIdx == 2) stepLengthPPQ = 0.25; // 1/16 Note
-        else if (rateIdx == 3) stepLengthPPQ = 0.125;// 1/32 Note
+        // Compute active step rate dynamically scaling with continuous modulated LFO [NEW]
+        double stepLengthPPQ = 0.25; 
+        if (activeRateIdx == 0)      stepLengthPPQ = 1.0;   // 1/4 Note
+        else if (activeRateIdx == 1) stepLengthPPQ = 0.5;   // 1/8 Note
+        else if (activeRateIdx == 2) stepLengthPPQ = 0.25;  // 1/16 Note
+        else if (activeRateIdx == 3) stepLengthPPQ = 0.125; // 1/32 Note
 
         double stepSamples = samplesPerBeat * stepLengthPPQ;
 
@@ -265,11 +301,12 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         if (stepTriggered)
         {
             float faderProb = activeFaderProb[currentStep];
-            float baseRhyMorph = *apvts.getRawParameterValue (IDs::rhythmMorph.getParamID());
             
-            int ratchetPulses = static_cast<int>(std::round(baseRhyMorph * 8.0f));
+            // Execute Euclidean ratcheting on modulated morph parameter [NEW]
+            int ratchetPulses = static_cast<int>(std::round(activeMorph * 8.0f));
             std::vector<int> euclidRatchets = generateEuclideanPattern (8, ratchetPulses);
             bool isRatchetStep = euclidRatchets[currentStep] == 1;
+            juce::ignoreUnused(isRatchetStep);
 
             bool shouldPlay = (juce::Random::getSystemRandom().nextFloat() <= faderProb);
             bool isRest = (juce::Random::getSystemRandom().nextFloat() <= modRest);
@@ -299,9 +336,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                 int rawPitch = notesToPlay[currentStep % notesToPlay.size()];
                 int octave = (rawPitch / 12) * 12;
 
-                // Cycle up octaves based on OCTAVES knob setting
-                int numOctaves = juce::jlimit (1, 4, static_cast<int> (*apvts.getRawParameterValue (IDs::octaves.getParamID())));
-                int octaveShiftCount = (currentStep / 2) % numOctaves; // Ascend up an octave every 2 steps
+                // Modulate active arpeggiation octave limit continuously [NEW]
+                int octaveShiftCount = (currentStep / 2) % activeOctavesVal;
 
                 int targetPitch = octave + rootKeyIdx + scaleOffsets[currentStep] + static_cast<int>(accumulatedPitchOffset) + (octaveShiftCount * 12);
 
@@ -366,15 +402,14 @@ void PluginProcessor::triggerDiatonicChordPad (int padIndex)
     int t = getScalePitch (padIndex + 2); 
     int f = getScalePitch (padIndex + 4); 
 
-    float harmonyKnobVal = *apvts.getRawParameterValue (IDs::harmony.getParamID());
+    // Apply modulated continuous LFO parameter [NEW]
     std::vector<int> newChord;
-
-    if (harmonyKnobVal >= 0.34f && harmonyKnobVal < 0.67f)
+    if (activeHarmony >= 0.34f && activeHarmony < 0.67f)
     {
         t = getScalePitch (padIndex + 3); 
         newChord = { baseRoot + r, baseRoot + t, baseRoot + f };
     }
-    else if (harmonyKnobVal >= 0.67f)
+    else if (activeHarmony >= 0.67f)
     {
         int s = getScalePitch (padIndex + 6); 
         newChord = { baseRoot + r, baseRoot + t, baseRoot + f, baseRoot + s };
@@ -509,11 +544,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::cycleLength, "Cycle Length", 
         juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 2)); 
 
-    // New parameters mapped to the UC4 top encoders
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rate, "Rate", 
-        juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2)); // Default 1/16
+        juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2)); 
 
-    params.push_back (std::make_unique<juce::AudioParameterInt> (IDs::octaves, "Octaves", 1, 4, 1)); // Default 1 Octave
+    params.push_back (std::make_unique<juce::AudioParameterInt> (IDs::octaves, "Octaves", 1, 4, 1)); 
+
+    // Helper lambda to register 8-Channel LFO parameters [NEW]
+    auto registerLfoParams = [&](juce::ParameterID rateId, juce::ParameterID depthId, juce::String name) {
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (rateId, name + " LFO Speed", 
+            juce::StringArray { "Off", "1/4", "1/8", "1/16", "1/32" }, 0));
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (depthId, name + " LFO Depth", 0.0f, 1.0f, 0.0f));
+    };
+
+    registerLfoParams (IDs::rhythmMorphLfoRate, IDs::rhythmMorphLfoDepth, "Morph");
+    registerLfoParams (IDs::restLfoRate,        IDs::restLfoDepth,        "Rest");
+    registerLfoParams (IDs::legatoLfoRate,      IDs::legatoLfoDepth,      "Legato");
+    registerLfoParams (IDs::rateLfoRate,        IDs::rateLfoDepth,        "Rate");
+    registerLfoParams (IDs::entropyLfoRate,     IDs::entropyLfoDepth,     "Entropy");
+    registerLfoParams (IDs::harmonyLfoRate,     IDs::harmonyLfoDepth,     "Harmony");
+    registerLfoParams (IDs::chaosLfoRate,       IDs::chaosLfoDepth,       "Chaos");
+    registerLfoParams (IDs::octavesLfoRate,     IDs::octavesLfoDepth,     "Octaves");
 
     return { params.begin(), params.end() };
 }

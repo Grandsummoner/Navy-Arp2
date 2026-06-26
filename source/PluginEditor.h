@@ -12,7 +12,7 @@
 class ChromaCapsLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    ChromaCapsLookAndFeel()
+    ChromaCapsLookAndFeel (PluginProcessor& p) : processor (p)
     {
         setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
     }
@@ -21,8 +21,9 @@ public:
                            float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
                            juce::Slider& slider) override
     {
-        auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (8.0f);
-        auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) / 2.0f;
+        auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
+        auto knobBounds = bounds.reduced (16.0f); // Leave room on boundaries for the 15 LEDs [5]
+        auto radius = juce::jmin (knobBounds.getWidth(), knobBounds.getHeight()) / 2.0f;
         auto toX = bounds.getCentreX();
         auto toY = bounds.getCentreY();
 
@@ -30,18 +31,17 @@ public:
         g.setColour (juce::Colour (0x45000000));
         g.fillEllipse (toX - radius + 2.0f, toY - radius + 4.0f, radius * 2.0f, radius * 2.0f);
 
-        // 2. Matte rubberized cylindrical body (3D Gradient for roundness) [5]
+        // 2. Matte rubberized cylindrical body [5]
         juce::Colour rubberBaseCol = juce::Colour (0xFF1A1C24); 
         juce::ColourGradient grad (rubberBaseCol.brighter (0.12f), toX, toY - radius, 
                                    rubberBaseCol.darker (0.25f), toX, toY + radius, false);
         g.setGradientFill (grad);
         g.fillEllipse (toX - radius, toY - radius, radius * 2.0f, radius * 2.0f);
 
-        // 3. Highlighted outer lip edge of the cap
         g.setColour (juce::Colour (0xFF2D313D));
         g.drawEllipse (toX - radius, toY - radius, radius * 2.0f, radius * 2.0f, 1.0f);
 
-        // 4. Colored rubber indicator pointer strip (Iconic Chroma Cap high-visibility neon needle) [5]
+        // 3. Colored rubber indicator pointer strip [5]
         float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
         auto accentCol = slider.findColour (juce::Slider::rotarySliderFillColourId);
 
@@ -52,73 +52,156 @@ public:
 
         g.saveState();
         g.addTransform (juce::AffineTransform::rotation (angle).translated (toX, toY));
-        
-        // Solid Neon Pointer [5]
         g.setColour (accentCol);
         g.fillPath (pointerPath);
-        
-        // Glossy Highlights on Pointer Cap [5]
         g.setColour (juce::Colours::white.withAlpha (0.35f));
         g.strokePath (pointerPath, juce::PathStrokeType (0.7f)); 
         g.restoreState();
 
-        // 5. Matte Center Cap dome [5]
+        // Center Cap dome
         float centerRadius = radius * 0.38f;
         g.setColour (rubberBaseCol.darker (0.5f));
         g.fillEllipse (toX - centerRadius, toY - centerRadius, centerRadius * 2.0f, centerRadius * 2.0f);
-        g.setColour (juce::Colours::white.withAlpha (0.05f));
-        g.fillEllipse (toX - centerRadius, toY - centerRadius - 2.0f, centerRadius * 2.0f, centerRadius * 1.5f);
+
+        // 4. Circular 15-LED rings with real-time modulation visual updates [5] [NEW]
+        float ledRingRadius = radius + 9.5f; 
+        int numLeds = 15;
+        juce::Colour ledActiveCol = accentCol;
+        float visualValue = sliderPos;
+        bool lfoActive = false;
+
+        auto* param = slider.getAssociatedParameter();
+        if (param != nullptr)
+        {
+            juce::String pId = param->getParameterID();
+            int lfoRateVal = 0;
+            
+            if (pId == "rhythmMorph") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::rhythmMorphLfoRate.getParamID()));
+                visualValue = (lfoRateVal > 0) ? processor.activeMorph : sliderPos;
+            }
+            else if (pId == "rest") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::restLfoRate.getParamID()));
+                visualValue = (lfoRateVal > 0) ? processor.activeRest : sliderPos;
+            }
+            else if (pId == "legato") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::legatoLfoRate.getParamID()));
+                float rawLegato = (lfoRateVal > 0) ? processor.activeLegato : *processor.apvts.getRawParameterValue (IDs::legato.getParamID());
+                visualValue = (rawLegato - 0.1f) / 0.9f;
+            }
+            else if (pId == "rate") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::rateLfoRate.getParamID()));
+                float rawRate = (lfoRateVal > 0) ? static_cast<float>(processor.activeRateIdx) : *processor.apvts.getRawParameterValue (IDs::rate.getParamID());
+                visualValue = rawRate / 3.0f;
+            }
+            else if (pId == "entropy") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::entropyLfoRate.getParamID()));
+                float rawEntropy = (lfoRateVal > 0) ? processor.activeEntropy : *processor.apvts.getRawParameterValue (IDs::entropy.getParamID());
+                visualValue = (rawEntropy + 1.0f) * 0.5f;
+            }
+            else if (pId == "harmony") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::harmonyLfoRate.getParamID()));
+                visualValue = (lfoRateVal > 0) ? processor.activeHarmony : sliderPos;
+            }
+            else if (pId == "chaos") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::chaosLfoRate.getParamID()));
+                visualValue = (lfoRateVal > 0) ? processor.activeChaos : sliderPos;
+            }
+            else if (pId == "octaves") {
+                lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::octavesLfoRate.getParamID()));
+                float rawOctaves = (lfoRateVal > 0) ? static_cast<float>(processor.activeOctavesVal) : *processor.apvts.getRawParameterValue (IDs::octaves.getParamID());
+                visualValue = (rawOctaves - 1.0f) / 3.0f;
+            }
+            
+            lfoActive = (lfoRateVal > 0);
+            
+            // Shift neon LED colors to indicate focus [NEW]
+            if (lfoActive)
+            {
+                ledActiveCol = (pId == "rhythmMorph" || pId == "rest" || pId == "legato" || pId == "rate") 
+                               ? juce::Colour (0xFFFF00D2)  // Neon Magenta (Left)
+                               : juce::Colour (0xFF9933FF); // Deep Purple (Right)
+            }
+        }
+
+        // Draw 15 discrete circular LED dots [NEW]
+        for (int i = 0; i < numLeds; ++i)
+        {
+            float pct = static_cast<float>(i) / static_cast<float>(numLeds - 1);
+            float ledAngle = rotaryStartAngle + pct * (rotaryEndAngle - rotaryStartAngle);
+            
+            float ledX = toX + ledRingRadius * std::sin (ledAngle);
+            float ledY = toY - ledRingRadius * std::cos (ledAngle);
+            
+            bool isLit = (pct <= visualValue);
+            
+            if (isLit)
+            {
+                g.setColour (ledActiveCol);
+                g.fillEllipse (ledX - 1.8f, ledY - 1.8f, 3.6f, 3.6f);
+                
+                g.setColour (ledActiveCol.withAlpha (0.22f));
+                g.drawEllipse (ledX - 3.2f, ledY - 3.2f, 6.4f, 6.4f, 1.2f);
+            }
+            else
+            {
+                g.setColour (juce::Colour (0xFF1C1E24)); // Dim unlit bulb
+                g.fillEllipse (ledX - 1.5f, ledY - 1.5f, 3.0f, 3.0f);
+            }
+        }
     }
 
     void drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPos, float minSliderPos, float maxSliderPos,
                            const juce::Slider::SliderStyle style, juce::Slider& slider) override
     {
-        // Custom vertical mixer-style faders to match Chroma style [5]
+        // Custom vertical mixer-style faders to match Chroma style [5] [NEW]
         if (style == juce::Slider::LinearVertical)
         {
             auto trackWidth = 4.0f;
             auto trackX = x + width * 0.5f - trackWidth * 0.5f;
             
-            // 1. Draw Recessed Fader Slot/Track [5]
+            // Recessed slot
             g.setColour (juce::Colour (0xFF090A0D));
             g.fillRoundedRectangle (trackX, (float)y, trackWidth, (float)height, trackWidth * 0.5f);
             
             g.setColour (juce::Colour (0xFF242835));
             g.drawRoundedRectangle (trackX - 1.0f, (float)y, trackWidth + 2.0f, (float)height, trackWidth * 0.5f, 1.0f);
 
-            // 2. Draw Chroma Fader Cap [5]
+            // Tactile Chroma Fader Cap
             float capWidth = juce::jmin (26.0f, width * 0.8f);
             float capHeight = 14.0f;
             float capX = x + width * 0.5f - capWidth * 0.5f;
             float capY = sliderPos - capHeight * 0.5f;
 
-            // Fader shadow [5]
+            // Shadow
             g.setColour (juce::Colour (0x45000000));
             g.fillRoundedRectangle (capX + 1.0f, capY + 3.0f, capWidth, capHeight, 2.0f);
 
-            // Tactile Rubberized Fader Cap Body [5]
+            // Cap body
             juce::Colour capBaseCol = juce::Colour (0xFF1E212A);
             juce::ColourGradient capGrad (capBaseCol.brighter (0.1f), capX, capY,
                                          capBaseCol.darker (0.2f), capX, capY + capHeight, false);
             g.setGradientFill (capGrad);
             g.fillRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f);
 
-            // Outer cap bezel highlights
+            // Borders
             g.setColour (juce::Colour (0xFF3A3F4E));
             g.drawRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f, 1.0f);
 
-            // Colored central neon strip indicator [5]
+            // Horizontal high-contrast stripe [5]
             g.setColour (slider.findColour (juce::Slider::thumbColourId));
             float stripeHeight = 2.0f;
             g.fillRect (capX + 2.0f, capY + capHeight * 0.5f - stripeHeight * 0.5f, capWidth - 4.0f, stripeHeight);
         }
         else
         {
-            // Fallback for horizontal sliders
             juce::LookAndFeel_V4::drawLinearSlider (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
         }
     }
+
+private:
+    PluginProcessor& processor;
 };
 
 // ==============================================================================
@@ -162,11 +245,11 @@ public:
         g.drawText ("KEY: " + keyName + " | SCALE: " + scaleName + " | EXT: " + extText + " | RATE: " + speedRate + " | OCT: " + activeOcts, 
                     10, 25, getWidth() - 20, 15, juce::Justification::centred);
 
-        // Grid Area Calculations
+        // Symmetrical grid areas [NEW]
         auto area = getLocalBounds().reduced (15);
         area.removeFromTop (35); 
         
-        // 1. Subtle horizontal level lines under the meters (25%, 50%, 75% thresholds)
+        // 1. Draw subtle horizontal grid thresholds
         g.setColour (juce::Colour (0xFF141822));
         for (float pct : { 0.25f, 0.50f, 0.75f })
         {
@@ -180,8 +263,6 @@ public:
         for (int i = 0; i < 8; ++i)
         {
             float faderProb = *processor.apvts.getRawParameterValue ("fader" + juce::String (i + 1));
-            
-            // Scaled down vertically to fit step markers neatly underneath the bars
             int barHeight = static_cast<int>((area.getHeight() - 15) * faderProb * 0.75f);
             
             juce::Rectangle<int> bar (area.getX() + (i * barWidth) + spacing, 
@@ -191,7 +272,7 @@ public:
 
             bool isPlaying = processor.isCurrentlyPlayingUI.load();
 
-            // 2. Draw dynamic meter bars
+            // 2. Draw dynamic step bars
             if (i == processor.currentStep && isPlaying)
             {
                 if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); // Beat 1: Green
@@ -207,7 +288,7 @@ public:
                 g.fillRect (bar);
             }
 
-            // 3. Symmetrical Dim Sequencer Step LED Labels [NEW]
+            // 3. Symmetrical Sequencer Step indicators [NEW]
             juce::String stepNumStr = juce::String (i + 1);
             g.setFont (juce::Font ("Consolas", 10.0f, juce::Font::bold));
             
@@ -242,20 +323,7 @@ public:
     void resized() override;
     void timerCallback() override;
 
-    void mouseDown (const juce::MouseEvent& event) override
-    {
-        for (int i = 0; i < 8; ++i)
-        {
-            if (event.eventComponent == &presetButtons[i])
-            {
-                if (event.mods.isRightButtonDown())
-                {
-                    processor.savePreset(i);
-                    presetButtons[i].setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF003344));
-                }
-            }
-        }
-    }
+    void mouseDown (const juce::MouseEvent& event) override;
 
 private:
     PluginProcessor& processor;

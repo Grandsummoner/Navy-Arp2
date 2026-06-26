@@ -13,7 +13,17 @@ namespace IDs
     DECLARE_ID(entropy); DECLARE_ID(harmony); DECLARE_ID(chaos);
     DECLARE_ID(morph); DECLARE_ID(latch); DECLARE_ID(chordMode);
     DECLARE_ID(rootKey); DECLARE_ID(scaleType); DECLARE_ID(cycleLength);
-    DECLARE_ID(rate); DECLARE_ID(octaves); // New parameters mapped to the UC4 encoders
+    DECLARE_ID(rate); DECLARE_ID(octaves); 
+
+    // New LFO Rate (Choices) and LFO Depth (Float) parameters for all 8 controls
+    DECLARE_ID(rhythmMorphLfoRate); DECLARE_ID(rhythmMorphLfoDepth);
+    DECLARE_ID(restLfoRate);        DECLARE_ID(restLfoDepth);
+    DECLARE_ID(legatoLfoRate);      DECLARE_ID(legatoLfoDepth);
+    DECLARE_ID(rateLfoRate);        DECLARE_ID(rateLfoDepth);
+    DECLARE_ID(entropyLfoRate);     DECLARE_ID(entropyLfoDepth);
+    DECLARE_ID(harmonyLfoRate);     DECLARE_ID(harmonyLfoDepth);
+    DECLARE_ID(chaosLfoRate);       DECLARE_ID(chaosLfoDepth);
+    DECLARE_ID(octavesLfoRate);     DECLARE_ID(octavesLfoDepth);
     #undef DECLARE_ID
 }
 
@@ -83,7 +93,17 @@ public:
 
     // Multi-thread safe communication
     std::atomic<bool> isCurrentlyPlayingUI { false };
-    std::atomic<int> activeChordExtensionType { 0 }; // 0 = TRIAD, 1 = SUS, 2 = 7th/9th
+    std::atomic<int> activeChordExtensionType { 0 }; 
+
+    // Public active values modulated in real-time by the internal LFOs [NEW]
+    float activeMorph = 0.0f;
+    float activeRest = 0.1f;
+    float activeLegato = 0.5f;
+    int activeRateIdx = 2; // 0 = 1/4, 1 = 1/8, 2 = 1/16, 3 = 1/32
+    float activeEntropy = 0.0f;
+    float activeHarmony = 0.0f;
+    float activeChaos = 0.0f;
+    int activeOctavesVal = 1;
 
     std::vector<int> activeHeldNotes;
     std::vector<int> latchedNotes;
@@ -106,6 +126,9 @@ private:
     int mNoteOffTime = 0; 
     
     std::vector<std::pair<int, int>> scheduledNoteOffs;
+
+    // 8 Independent LFO phases [NEW]
+    double lfoPhases[8] = { 0.0 };
 
     double lfoPhaseEntropy = 0.0;
     double lfoPhaseChaos = 0.0;

@@ -2,11 +2,11 @@
 #include "PluginEditor.h"
 
 PluginEditor::PluginEditor (PluginProcessor& p)
-    : AudioProcessorEditor (&p), processor (p), oledDisplay (p)
+    : AudioProcessorEditor (&p), processor (p), oledDisplay (p), chromaLookAndFeel (p)
 {
     addAndMakeVisible (oledDisplay);
 
-    // Bottom faders (Mapped to Custom LookAndFeel for fader slot and fader knob modifications) [5]
+    // Bottom faders (Linear Chroma Customization) [5]
     juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     juce::Label* faderLabels[] = { &faderLabel1, &faderLabel2, &faderLabel3, &faderLabel4, &faderLabel5, &faderLabel6, &faderLabel7, &faderLabel8 };
     juce::String scaleNotes[] = { "C", "D", "Eb", "F", "G", "Ab", "Bb", "C" };
@@ -38,6 +38,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         leftKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 65, 16);
         leftKnobs[i]->setColour (juce::Slider::rotarySliderFillColourId, juce::Colour (0xFF00D2FF)); 
         leftKnobs[i]->setLookAndFeel (&chromaLookAndFeel); 
+        leftKnobs[i]->addMouseListener (this, false); // Listen for right clicks [NEW]
         addAndMakeVisible (leftKnobs[i]);
 
         leftTitles[i]->setText (leftNames[i], juce::dontSendNotification);
@@ -58,6 +59,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         rightKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 65, 16);
         rightKnobs[i]->setColour (juce::Slider::rotarySliderFillColourId, juce::Colour (0xFFFFB300)); 
         rightKnobs[i]->setLookAndFeel (&chromaLookAndFeel); 
+        rightKnobs[i]->addMouseListener (this, false); // Listen for right clicks [NEW]
         addAndMakeVisible (rightKnobs[i]);
 
         rightTitles[i]->setText (rightNames[i], juce::dontSendNotification);
@@ -210,41 +212,87 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     startTimerHz (30);
 }
 
-PluginEditor::~PluginEditor() 
-{ 
-    stopTimer(); 
-    
-    // Safety unregister custom LookAndFeel references on all rotary knobs [5]
-    rhythmMorphKnob.setLookAndFeel (nullptr);
-    restKnob.setLookAndFeel (nullptr);
-    legatoKnob.setLookAndFeel (nullptr);
-    rateKnob.setLookAndFeel (nullptr);
-    
-    entropyKnob.setLookAndFeel (nullptr);
-    harmonyKnob.setLookAndFeel (nullptr);
-    chaosKnob.setLookAndFeel (nullptr);
-    octavesKnob.setLookAndFeel (nullptr);
-
-    // Safety unregister custom LookAndFeel references on all bottom linear faders [5]
-    fader1.setLookAndFeel (nullptr);
-    fader2.setLookAndFeel (nullptr);
-    fader3.setLookAndFeel (nullptr);
-    fader4.setLookAndFeel (nullptr);
-    fader5.setLookAndFeel (nullptr);
-    fader6.setLookAndFeel (nullptr);
-    fader7.setLookAndFeel (nullptr);
-    fader8.setLookAndFeel (nullptr);
-
-    diceMelodyButton.onClick = nullptr;
-    diceRhythmButton.onClick = nullptr;
-    sceneAButton.onClick = nullptr;
-    sceneBButton.onClick = nullptr;
-
+void PluginEditor::mouseDown (const juce::MouseEvent& event)
+{
+    // 1. Double check presets right click saving
     for (int i = 0; i < 8; ++i)
     {
-        presetButtons[i].onClick = nullptr;
-        presetButtons[i].onStateChange = nullptr;
-        presetButtons[i].removeMouseListener(this); 
+        if (event.eventComponent == &presetButtons[i])
+        {
+            if (event.mods.isRightButtonDown())
+            {
+                processor.savePreset(i);
+                presetButtons[i].setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF003344));
+            }
+        }
+    }
+
+    // 2. Continuous Right-Click Popup Menu handling for PC / Mac mouse users [NEW]
+    if (event.mods.isRightButtonDown())
+    {
+        juce::Slider* clickedSlider = nullptr;
+        juce::String paramPrefix = "";
+        
+        juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
+        juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+        juce::String leftPrefixes[] = { "rhythmMorph", "rest", "legato", "rate" };
+        juce::String rightPrefixes[] = { "entropy", "harmony", "chaos", "octaves" };
+        
+        for (int i = 0; i < 4; ++i)
+        {
+            if (event.eventComponent == leftKnobs[i])  { clickedSlider = leftKnobs[i];  paramPrefix = leftPrefixes[i];  break; }
+            if (event.eventComponent == rightKnobs[i]) { clickedSlider = rightKnobs[i]; paramPrefix = rightPrefixes[i]; break; }
+        }
+        
+        if (clickedSlider != nullptr)
+        {
+            juce::PopupMenu menu;
+            auto* rateParam = processor.apvts.getParameter (paramPrefix + "LfoRate");
+            auto* depthParam = processor.apvts.getParameter (paramPrefix + "LfoDepth");
+            
+            if (rateParam != nullptr && depthParam != nullptr)
+            {
+                int currentRateChoice = static_cast<int> (rateParam->getValue() * 4.0f);
+                float currentDepth = depthParam->getValue();
+                
+                menu.addSectionHeader ("LFO MODULATION");
+                menu.addCommandItem (1, "Disable LFO", true, (currentRateChoice == 0));
+                
+                menu.addSeparator();
+                juce::PopupMenu rateMenu;
+                rateMenu.addCommandItem (10, "1/4 Note", true, (currentRateChoice == 1));
+                rateMenu.addCommandItem (11, "1/8 Note", true, (currentRateChoice == 2));
+                rateMenu.addCommandItem (12, "1/16 Note", true, (currentRateChoice == 3));
+                rateMenu.addCommandItem (13, "1/32 Note", true, (currentRateChoice == 4));
+                menu.addSubMenu ("LFO Speed / Rate", rateMenu);
+                
+                juce::PopupMenu depthMenu;
+                depthMenu.addCommandItem (20, "Off (0%)", true, (currentDepth == 0.0f));
+                depthMenu.addCommandItem (21, "Slight (10%)", true, (currentDepth > 0.05f && currentDepth <= 0.15f));
+                depthMenu.addCommandItem (22, "Medium (25%)", true, (currentDepth > 0.2f && currentDepth <= 0.3f));
+                depthMenu.addCommandItem (23, "Heavy (50%)", true, (currentDepth > 0.45f && currentDepth <= 0.55f));
+                depthMenu.addCommandItem (24, "Full (100%)", true, (currentDepth > 0.90f));
+                menu.addSubMenu ("LFO Depth", depthMenu);
+
+                menu.showMenuAsync (juce::PopupMenu::Options(), [rateParam, depthParam](int result) {
+                    if (result == 1) {
+                        rateParam->setValueNotifyingHost (0.0f); // Off
+                    }
+                    else if (result >= 10 && result <= 13) {
+                        float val = static_cast<float> (result - 9) / 4.0f; // Map menu index back onto choices
+                        rateParam->setValueNotifyingHost (val);
+                    }
+                    else if (result >= 20 && result <= 24) {
+                        float depthVal = 0.0f;
+                        if (result == 21) depthVal = 0.1f;
+                        else if (result == 22) depthVal = 0.25f;
+                        else if (result == 23) depthVal = 0.5f;
+                        else if (result == 24) depthVal = 1.0f;
+                        depthParam->setValueNotifyingHost (depthVal);
+                    }
+                });
+            }
+        }
     }
 }
 
@@ -333,14 +381,9 @@ void PluginEditor::timerCallback()
 
 void PluginEditor::paint (juce::Graphics& g)
 {
-    // Dark industrial metallic background
     g.fillAll (juce::Colour (0xFF16181F));
-    
-    // Symmetrical steel panel divider lines
     g.setColour (juce::Colour (0xFF2A2E3D));
     g.drawRect (getLocalBounds().toFloat(), 3.0f);
-    
-    // Horizontal groove line separating upper controls plate from bottom faders plate
     g.drawHorizontalLine (getHeight() - static_cast<int>(getHeight() * 0.22f), 15.0f, getWidth() - 15.0f);
 
     g.setFont (juce::Font (12.0f, juce::Font::bold));
@@ -352,12 +395,10 @@ void PluginEditor::paint (juce::Graphics& g)
 void PluginEditor::resized()
 {
     auto area = getLocalBounds().reduced (15);
-
-    // Get current proportional dimensions to compute responsive coordinates [4]
     int totalWidth = getWidth();
     int totalHeight = getHeight();
 
-    // 1. Bottom Section: 8 Scale-Degree Faders (Faders space reduced [1])
+    // 1. Bottom Section: 8 Scale-Degree Faders (Faders vertical scale reduced by 20%) [1]
     int bottomHeight = static_cast<int>(totalHeight * 0.17f); 
     auto bottomArea = area.removeFromBottom (bottomHeight);
     auto faderLabelArea = bottomArea.removeFromBottom (16);
@@ -386,7 +427,7 @@ void PluginEditor::resized()
 
     area.removeFromBottom (15);
 
-    // 3. Sidebars (Width scaled proportionally at 15% of total editor layout width) [4]
+    // 3. Sidebars (15% of width)
     int sidebarWidth = static_cast<int>(totalWidth * 0.15f); 
     auto leftSidebar = area.removeFromLeft (sidebarWidth);
     auto rightSidebar = area.removeFromRight (sidebarWidth);
