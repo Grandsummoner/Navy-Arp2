@@ -193,7 +193,7 @@ public:
                 lfoRateVal = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::octavesLfoRate.getParamID()));
                 float baseOctaves = static_cast<float> (*processor.apvts.getRawParameterValue (IDs::octaves.getParamID()));
                 float rawOctaves = (lfoRateVal > 0) ? static_cast<float>(processor.activeOctavesVal) : baseOctaves;
-                visualValue = (rawOctaves - 1.0f) / 3.0f;
+                visualValue = (rawOctaves + 2.0f) / 5.0f; // Symmetrical scale layout matching -2 to +3 [NEW]
             }
             
             lfoActive = (lfoRateVal > 0);
@@ -281,6 +281,50 @@ public:
             float stripeHeight = 2.0f;
             g.fillRect (capX + 2.0f, capY + capHeight * 0.5f - stripeHeight * 0.5f, capWidth - 4.0f, stripeHeight);
         }
+        else if (style == juce::Slider::LinearHorizontal) // Crossfader [5] [NEW]
+        {
+            // Load active theme colors dynamically
+            int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+            auto t = AppTheme::get (themeIdx);
+
+            auto trackHeight = 4.0f;
+            auto trackY = y + height * 0.5f - trackHeight * 0.5f;
+
+            // Recessed horizontal slot [5]
+            g.setColour (t.trackBg);
+            g.fillRoundedRectangle ((float)x, trackY, (float)width, trackHeight, trackHeight * 0.5f);
+            g.setColour (t.slotOutline);
+            g.drawRoundedRectangle ((float)x, trackY, (float)width, trackHeight, trackHeight * 0.5f, 1.0f);
+
+            // 3D DJ-Style Crossfader Cap [5] [NEW]
+            float capWidth = 28.0f;
+            float capHeight = 16.0f;
+            float capX = sliderPos - capWidth * 0.5f;
+            float capY = y + height * 0.5f - capHeight * 0.5f;
+
+            // Fader shadow
+            g.setColour (juce::Colour (themeIdx == 1 ? 0x15000000 : 0x45000000));
+            g.fillRoundedRectangle (capX + 1.0f, capY + 3.0f, capWidth, capHeight, 2.0f);
+
+            // Tactile Rubberized Cap Body
+            juce::Colour capBaseCol = t.faderCap;
+            juce::ColourGradient capGrad (capBaseCol.brighter (0.1f), capX, capY,
+                                         capBaseCol.darker (0.2f), capX, capY + capHeight, false);
+            g.setGradientFill (capGrad);
+            g.fillRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f);
+
+            // Borders
+            g.setColour (juce::Colour (0xFF3A3F4E));
+            g.drawRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f, 1.0f);
+
+            // Vertical high-contrast indicator stripe [5] [NEW]
+            // Morph Color-Coding: dynamically blends between Cyan/Amber
+            float blendVal = (sliderPos - minSliderPos) / (maxSliderPos - minSliderPos);
+            juce::Colour indicatorCol = t.leftAccent.interpolatedWith (t.rightAccent, blendVal);
+            g.setColour (indicatorCol);
+            float stripeWidth = 2.0f;
+            g.fillRect (capX + capWidth * 0.5f - stripeWidth * 0.5f, capY + 2.0f, stripeWidth, capHeight - 4.0f);
+        }
         else
         {
             juce::LookAndFeel_V4::drawLinearSlider (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
@@ -304,21 +348,103 @@ public:
     
     ~OledDisplay() override { stopTimer(); }
 
-    void timerCallback() override { repaint(); }
+    void timerCallback() override
+    {
+        // Self-contained LFO parameter modification tracking loop [NEW]
+        juce::String prefixes[] = { "rhythmMorph", "rest", "legato", "rate", "entropy", "harmony", "chaos", "octaves" };
+        bool lfoParamChanged = false;
+        int changedIdx = -1;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            int rate = static_cast<int> (*processor.apvts.getRawParameterValue (prefixes[i] + "LfoRate"));
+            float depth = *processor.apvts.getRawParameterValue (prefixes[i] + "LfoDepth");
+            
+            if (rate != lastLfoRates[i] || depth != lastLfoDepths[i])
+            {
+                lastLfoRates[i] = rate;
+                lastLfoDepths[i] = depth;
+                lfoParamChanged = true;
+                changedIdx = i;
+            }
+        }
+
+        // Set LFO preview oscilloscope fade out triggers [NEW]
+        if (lfoParamChanged)
+        {
+            lfoOverlayTimer = 45; // 1.5 seconds at 30Hz
+            lfoActiveParamIdx = changedIdx;
+        }
+        else if (lfoOverlayTimer > 0)
+        {
+            lfoOverlayTimer--;
+        }
+
+        repaint();
+    }
 
     void paint (juce::Graphics& g) override
     {
         int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
         auto t = AppTheme::get (themeIdx);
 
-        // Keep OLED screen background dark and professional even on light beige panels! [NEW]
+        // Keep OLED screen background dark and professional even on light beige panels!
         g.fillAll (t.background.darker (0.9f)); 
         g.setColour (t.border); 
         g.drawRect (getLocalBounds().toFloat(), 2.0f);
 
+        // OLED Grid Area Calculations
+        auto area = getLocalBounds().reduced (15);
+
+        // Render real-time LFO Waveform Oscilloscope Overlay on active parameter change [NEW]
+        if (lfoOverlayTimer > 0 && lfoActiveParamIdx >= 0)
+        {
+            juce::String prefixes[] = { "MORPH", "REST", "LEGATO", "RATE", "ENTROPY", "HARMONY", "CHAOS", "OCTAVES" };
+            
+            g.setColour (t.leftAccent);
+            g.setFont (juce::Font ("Consolas", 14.0f, juce::Font::bold));
+            g.drawText ("LFO PREVIEW: " + prefixes[lfoActiveParamIdx], 15, 12, getWidth() - 30, 20, juce::Justification::centred);
+
+            g.setFont (juce::Font ("Consolas", 10.0f, juce::Font::plain));
+            g.setColour (juce::Colour (0xFF888A90));
+            juce::String speedRate = processor.apvts.getParameter(prefixes[lfoActiveParamIdx].toLowerCase() + "LfoRate")->getCurrentValueAsText();
+            g.drawText ("RATE: " + speedRate + " | DEPTH: " + juce::String(static_cast<int>(lastLfoDepths[lfoActiveParamIdx] * 100.0f)) + "%",
+                        15, 25, getWidth() - 30, 15, juce::Justification::centred);
+
+            // Draw clean real-time scrolling sine wave representation [NEW]
+            juce::Path wavePath;
+            float waveYCenter = area.getCentreY() + 10.0f;
+            float waveHeight = (area.getHeight() - 40.0f) * lastLfoDepths[lfoActiveParamIdx] * 0.45f;
+            
+            int rateChoice = lastLfoRates[lfoActiveParamIdx];
+            float frequencyFactor = 1.0f;
+            if (rateChoice == 1)      frequencyFactor = 0.25f; // Slow
+            else if (rateChoice == 2) frequencyFactor = 0.5f;
+            else if (rateChoice == 3) frequencyFactor = 1.0f;  // Medium
+            else if (rateChoice == 4) frequencyFactor = 2.0f;  // Fast
+
+            static float phaseOffset = 0.0f;
+            phaseOffset += 0.15f * frequencyFactor;
+            if (phaseOffset >= juce::MathConstants<float>::twoPi) phaseOffset -= juce::MathConstants<float>::twoPi;
+
+            for (int x = area.getX(); x < area.getRight(); ++x)
+            {
+                float pct = static_cast<float>(x - area.getX()) / static_cast<float>(area.getWidth());
+                float sineVal = std::sin (pct * juce::MathConstants<float>::twoPi * 2.0f * frequencyFactor + phaseOffset);
+                float yVal = waveYCenter + sineVal * waveHeight;
+                
+                if (x == area.getX()) wavePath.startNewSubPath (static_cast<float>(x), yVal);
+                else                  wavePath.lineTo (static_cast<float>(x), yVal);
+            }
+
+            // Choose symmetrical left/right accent color
+            g.setColour (lfoActiveParamIdx < 4 ? t.leftAccent : t.rightAccent);
+            g.strokePath (wavePath, juce::PathStrokeType (1.8f));
+            return; // Intercept drawing to skip standard meters
+        }
+
         g.setColour (t.leftAccent);
         g.setFont (juce::Font ("Consolas", 14.0f, juce::Font::bold));
-        
         juce::String headerText = "NAVY-ARP GRAPHIC MONITOR";
         g.drawFittedText (headerText, getLocalBounds().removeFromTop (25), juce::Justification::centred, 1);
 
@@ -336,8 +462,6 @@ public:
         g.drawText ("KEY: " + keyName + " | SCALE: " + scaleName + " | EXT: " + extText + " | RATE: " + speedRate + " | OCT: " + activeOcts, 
                     10, 25, getWidth() - 20, 15, juce::Justification::centred);
 
-        // Grid Area Calculations
-        auto area = getLocalBounds().reduced (15);
         area.removeFromTop (35); 
         
         // 1. Draw subtle horizontal grid thresholds
@@ -401,6 +525,10 @@ public:
 
 private:
     PluginProcessor& processor;
+    int lastLfoRates[8] = { 0 };
+    float lastLfoDepths[8] = { 0.0f };
+    int lfoOverlayTimer = 0;
+    int lfoActiveParamIdx = -1;
 };
 
 // ==============================================================================

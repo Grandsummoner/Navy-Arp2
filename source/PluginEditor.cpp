@@ -81,6 +81,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     morphCrossfader.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     morphCrossfader.setColour (juce::Slider::thumbColourId, juce::Colour (0xFFFFFFFF));
     morphCrossfader.setColour (juce::Slider::trackColourId, juce::Colour (0xFF222222));
+    morphCrossfader.setLookAndFeel (&chromaLookAndFeel); // Attach crossfader style [5]
     addAndMakeVisible (morphCrossfader);
 
     // Latch toggle
@@ -131,13 +132,13 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     }
 
     addAndMakeVisible (diceSceneAButton);
-    diceSceneAButton.setButtonText ("DA");
+    diceSceneAButton.setButtonText (juce::String::fromUTF8 (u8"🎲")); // Vector Dice Icon [5]
     diceSceneAButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF221100));
     diceSceneAButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFFFB300));
     diceSceneAButton.onClick = [this] { processor.editFocusSide.store (0); processor.diceActiveScene(); };
 
     addAndMakeVisible (diceSceneBButton);
-    diceSceneBButton.setButtonText ("DB");
+    diceSceneBButton.setButtonText (juce::String::fromUTF8 (u8"🎲")); // Vector Dice Icon [5]
     diceSceneBButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF221100));
     diceSceneBButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFFFB300));
     diceSceneBButton.onClick = [this] { processor.editFocusSide.store (1); processor.diceActiveScene(); };
@@ -234,9 +235,6 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     rootKeyAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::rootKey.getParamID(), rootKeyBox);
     scaleTypeAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::scaleType.getParamID(), scaleTypeBox);
     cycleLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::cycleLength.getParamID(), cycleLengthBox);
-
-    // Apply main frame click listener on background to handle contextual theme changes [NEW]
-    addMouseListener (this, false);
 
     setResizable (true, true);
     setResizeLimits (700, 460, 1400, 920);
@@ -783,7 +781,7 @@ void PluginEditor::resized()
     int selectWidth = (totalCenterWidth - 140) / 3;
     rootKeyBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (3, 2));
     cycleLengthBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (3, 2));
-    scaleTypeBox.setBounds (dropdownBarArea.removeFromLeft (selectWidth).reduced (3, 2));
+    scaleTypeBox.setBounds (dropdownBarArea.reduced (6, 2));
     
     // Latch and Chords button placements next to the dropdowns
     latchButton.setBounds (dropdownBarArea.removeFromLeft (65).reduced (2, 2));

@@ -39,9 +39,9 @@ struct SceneState {
     float entropy = 0.0f;
     float harmony = 0.0f;
     float chaos = 0.0f;
-    float octaves = 1.0f;
+    float octaves = 0.0f; // Default 0 (no octave shift)
 
-    // Full 16-channel LFO parameter states [NEW]
+    // Full 16-channel LFO parameter states [5]
     int lfoRates[8] = { 0 };
     float lfoDepths[8] = { 0.0f };
 };
@@ -58,7 +58,7 @@ public:
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
-    bool hasEditor() const override;
+    bool hasEditor() const override { return true; }
 
     const juce::String getName() const override;
     bool acceptsMidi() const override;
@@ -75,7 +75,7 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Save and Load logic inline forwards delegating to consolidated helpers [5] [NEW]
+    // Inline forwards delegating to the private consolidated helpers [5]
     void saveSceneA (int slotIndex) { saveScene (slotIndex, 0); }
     void loadSceneA (int slotIndex) { loadScene (slotIndex, 0); }
     void saveSceneB (int slotIndex) { saveScene (slotIndex, 1); }
@@ -96,7 +96,7 @@ public:
     // Generative triggers
     void diceMelody();
     void diceRhythm();
-    void diceActiveScene(); // Background-focused target randomizer [NEW]
+    void diceActiveScene(); // Background-focused target randomizer [5]
     void resetAccumulator();
     void resetRhythm();
     void triggerDiatonicChordPad (int padIndex);
@@ -106,7 +106,7 @@ public:
     bool hasSceneA = false;
     bool hasSceneB = false;
 
-    // 4x4 Octatrack Scene Memory [NEW]
+    // 4x4 Octatrack Scene Memory [5]
     SceneState sceneAPresets[4];
     SceneState sceneBPresets[4];
     bool sceneASlotsSaved[4] = { false };
@@ -114,7 +114,7 @@ public:
     
     std::atomic<int> activeSceneAIndex { 0 }; 
     std::atomic<int> activeSceneBIndex { 0 }; 
-    std::atomic<int> editFocusSide { 0 }; // 0 = A, 1 = B [NEW]
+    std::atomic<int> editFocusSide { 0 }; // 0 = A, 1 = B [5]
 
     int currentStep = 0;
     int currentBarInCycle = 1;
@@ -126,11 +126,11 @@ public:
     float activeMorph = 0.0f;
     float activeRest = 0.1f;
     float activeLegato = 0.5f;
-    int activeRateIdx = 2; // 0 = 1/4, 1 = 1/8, 2 = 1/16, 3 = 1/32
+    int activeRateIdx = 2; 
     float activeEntropy = 0.0f;
     float activeHarmony = 0.0f;
     float activeChaos = 0.0f;
-    int activeOctavesVal = 1;
+    int activeOctavesVal = 0;
 
     std::vector<int> activeHeldNotes;
     std::vector<int> latchedNotes;
@@ -144,7 +144,7 @@ private:
     std::vector<int> generateEuclideanPattern (int steps, int pulses);
     void scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int delaySamples);
 
-    // Private consolidated scene management helpers [5] [NEW]
+    // Private consolidated scene management helpers [5]
     void saveScene (int slotIndex, int side);
     void loadScene (int slotIndex, int side);
 
