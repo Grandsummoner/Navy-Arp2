@@ -7,6 +7,76 @@
 #include "PluginProcessor.h"
 
 // ==============================================================================
+// Dynamically Compiled Global Color Themes Structure [NEW]
+// ==============================================================================
+struct AppTheme
+{
+    juce::Colour background;
+    juce::Colour border;
+    juce::Colour leftAccent;
+    juce::Colour rightAccent;
+    juce::Colour textDim;
+    juce::Colour trackBg;
+    juce::Colour slotOutline;
+    juce::Colour faderCap;
+    juce::Colour unlitLed;
+
+    static AppTheme get (int index)
+    {
+        AppTheme t;
+        if (index == 1) // Skyline Eurorack (Light Beige)
+        {
+            t.background    = juce::Colour (0xFFE2E0D8);
+            t.border        = juce::Colour (0xFFB8B5AB);
+            t.leftAccent    = juce::Colour (0xFFFF3B30); // Eurorack Red LED
+            t.rightAccent   = juce::Colour (0xFF3A3A38); // Matte Charcoal
+            t.textDim       = juce::Colour (0xFF4C4C4A);
+            t.trackBg       = juce::Colour (0xFFD4D1C9);
+            t.slotOutline   = juce::Colour (0xFFA8A59C);
+            t.faderCap      = juce::Colour (0xFF1E1E1E);
+            t.unlitLed      = juce::Colour (0xFFB8B5AB);
+        }
+        else if (index == 2) // Monochrome Minimal
+        {
+            t.background    = juce::Colour (0xFF101010);
+            t.border        = juce::Colour (0xFF242424);
+            t.leftAccent    = juce::Colour (0xFFFFFFFF); // Clean White
+            t.rightAccent   = juce::Colour (0xFF88888A); // Mid Grey
+            t.textDim       = juce::Colour (0xFF66666A);
+            t.trackBg       = juce::Colour (0xFF080808);
+            t.slotOutline   = juce::Colour (0xFF2D2D32);
+            t.faderCap      = juce::Colour (0xFF222222);
+            t.unlitLed      = juce::Colour (0xFF1C1C1F);
+        }
+        else if (index == 3) // Matrix Terminal
+        {
+            t.background    = juce::Colour (0xFF030A05);
+            t.border        = juce::Colour (0xFF112A18);
+            t.leftAccent    = juce::Colour (0xFF33FF33); // Matrix Green
+            t.rightAccent   = juce::Colour (0xFF22AA22); 
+            t.textDim       = juce::Colour (0xFF1E5F2E);
+            t.trackBg       = juce::Colour (0xFF020603);
+            t.slotOutline   = juce::Colour (0xFF0E451E);
+            t.faderCap      = juce::Colour (0xFF112A18);
+            t.unlitLed      = juce::Colour (0xFF0E1A11);
+        }
+        else // Default Navy Cyber (Dark default) [5]
+        {
+            t.background    = juce::Colour (0xFF16181F);
+            t.border        = juce::Colour (0xFF2A2E3D);
+            t.leftAccent    = juce::Colour (0xFF00D2FF); // Cyan
+            t.rightAccent   = juce::Colour (0xFFFFB300); // Amber
+            t.textDim       = juce::Colour (0xFF55555C);
+            t.trackBg       = juce::Colour (0xFF181C24);
+            t.slotOutline   = juce::Colour (0xFF242835);
+            t.faderCap      = juce::Colour (0xFF1E212A);
+            t.unlitLed      = juce::Colour (0xFF1C1E24);
+        }
+        return t;
+    }
+};
+
+// ==============================================================================
 // Custom DJ TechTools / Chroma Caps Style Rotary & Linear LookAndFeel [5]
 // ==============================================================================
 class ChromaCapsLookAndFeel : public juce::LookAndFeel_V4
@@ -21,30 +91,38 @@ public:
                            float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
                            juce::Slider& slider) override
     {
-        auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
-        auto knobBounds = bounds.reduced (16.0f); // Leave room on boundaries for the 15 LEDs [5]
+        auto bounds = bounds.reduced (16.0f); 
+        auto knobBounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (16.0f); // Leave room on boundaries for the 15 LEDs [5]
         auto radius = juce::jmin (knobBounds.getWidth(), knobBounds.getHeight()) / 2.0f;
-        auto toX = bounds.getCentreX();
-        auto toY = bounds.getCentreY();
+        auto toX = knobBounds.getCentreX();
+        auto toY = knobBounds.getCentreY();
+
+        // Load active theme colors dynamically [NEW]
+        int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+        auto t = AppTheme::get (themeIdx);
 
         // 1. Subtle drop shadow beneath the rubber cap [5]
-        g.setColour (juce::Colour (0x45000000));
+        g.setColour (juce::Colour (themeIdx == 1 ? 0x25000000 : 0x45000000));
         g.fillEllipse (toX - radius + 2.0f, toY - radius + 4.0f, radius * 2.0f, radius * 2.0f);
 
         // 2. Matte rubberized cylindrical body [5]
-        juce::Colour rubberBaseCol = juce::Colour (0xFF1A1C24); 
+        juce::Colour rubberBaseCol = (themeIdx == 1) ? juce::Colour (0xFF1E212A) : juce::Colour (0xFF1A1C24); 
         juce::ColourGradient grad (rubberBaseCol.brighter (0.12f), toX, toY - radius, 
                                    rubberBaseCol.darker (0.25f), toX, toY + radius, false);
         g.setGradientFill (grad);
         g.fillEllipse (toX - radius, toY - radius, radius * 2.0f, radius * 2.0f);
 
-        // 3. Highlighted outer lip edge of the cap
+        // Highlighted outer lip edge of the cap
         g.setColour (juce::Colour (0xFF2D313D));
         g.drawEllipse (toX - radius, toY - radius, radius * 2.0f, radius * 2.0f, 1.0f);
 
-        // 4. Colored rubber indicator pointer strip [5]
+        // 3. Colored rubber indicator pointer strip [5]
         float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
-        auto accentCol = slider.findColour (juce::Slider::rotarySliderFillColourId);
+        
+        // Symmetrically map accents based on left and right slider columns
+        juce::Colour accentCol = (slider.getComponentID() == "rhythmMorph" || slider.getComponentID() == "rest" || 
+                                  slider.getComponentID() == "legato" || slider.getComponentID() == "rate")
+                                 ? t.leftAccent : t.rightAccent;
 
         juce::Path pointerPath;
         float pointerLength = radius * 0.95f;
@@ -64,14 +142,14 @@ public:
         g.setColour (rubberBaseCol.darker (0.5f));
         g.fillEllipse (toX - centerRadius, toY - centerRadius, centerRadius * 2.0f, centerRadius * 2.0f);
 
-        // 5. Circular 15-LED rings with real-time modulation visual updates [5]
+        // 4. Circular 15-LED rings with real-time modulation visual updates [5]
         float ledRingRadius = radius + 9.5f; 
         int numLeds = 15;
         juce::Colour ledActiveCol = accentCol;
         float visualValue = sliderPos;
         bool lfoActive = false;
 
-        // Safely identify the rotary slider using the component ID [5]
+        // Safely identify the rotary slider using the component ID [5] [NEW]
         juce::String pId = slider.getComponentID();
         if (pId.isNotEmpty())
         {
@@ -120,12 +198,12 @@ public:
             
             lfoActive = (lfoRateVal > 0);
             
-            // Shift neon LED colors to indicate focus
+            // Shift neon LED colors to indicate focus [NEW]
             if (lfoActive)
             {
                 ledActiveCol = (pId == "rhythmMorph" || pId == "rest" || pId == "legato" || pId == "rate") 
-                               ? juce::Colour (0xFFFF00D2)  // Neon Magenta (Left)
-                               : juce::Colour (0xFF9933FF); // Deep Purple (Right)
+                               ? juce::Colour (0xFFFF00D2)  // Neon Magenta
+                               : juce::Colour (0xFF9933FF); // Deep Purple
             }
         }
 
@@ -150,7 +228,7 @@ public:
             }
             else
             {
-                g.setColour (juce::Colour (0xFF1C1E24)); 
+                g.setColour (t.unlitLed); // Custom unlit led color mapped to current panel theme [NEW]
                 g.fillEllipse (ledX - 1.5f, ledY - 1.5f, 3.0f, 3.0f);
             }
         }
@@ -166,11 +244,15 @@ public:
             auto trackWidth = 4.0f;
             auto trackX = x + width * 0.5f - trackWidth * 0.5f;
             
+            // Load active theme colors dynamically [NEW]
+            int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+            auto t = AppTheme::get (themeIdx);
+
             // Recessed slot
-            g.setColour (juce::Colour (0xFF090A0D));
+            g.setColour (t.trackBg);
             g.fillRoundedRectangle (trackX, (float)y, trackWidth, (float)height, trackWidth * 0.5f);
             
-            g.setColour (juce::Colour (0xFF242835));
+            g.setColour (t.slotOutline);
             g.drawRoundedRectangle (trackX - 1.0f, (float)y, trackWidth + 2.0f, (float)height, trackWidth * 0.5f, 1.0f);
 
             // Tactile Chroma Fader Cap
@@ -180,11 +262,11 @@ public:
             float capY = sliderPos - capHeight * 0.5f;
 
             // Shadow
-            g.setColour (juce::Colour (0x45000000));
+            g.setColour (juce::Colour (themeIdx == 1 ? 0x15000000 : 0x45000000));
             g.fillRoundedRectangle (capX + 1.0f, capY + 3.0f, capWidth, capHeight, 2.0f);
 
-            // Cap body
-            juce::Colour capBaseCol = juce::Colour (0xFF1E212A);
+            // Tactile Rubberized Fader Cap Body
+            juce::Colour capBaseCol = t.faderCap;
             juce::ColourGradient capGrad (capBaseCol.brighter (0.1f), capX, capY,
                                          capBaseCol.darker (0.2f), capX, capY + capHeight, false);
             g.setGradientFill (capGrad);
@@ -226,11 +308,15 @@ public:
 
     void paint (juce::Graphics& g) override
     {
-        g.fillAll (juce::Colour (0xFF0A0A0C)); 
-        g.setColour (juce::Colour (0xFF1A2B3C)); 
+        int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+        auto t = AppTheme::get (themeIdx);
+
+        // Keep OLED screen background dark and professional even on light beige panels! [NEW]
+        g.fillAll (t.background.darker (0.9f)); 
+        g.setColour (t.border); 
         g.drawRect (getLocalBounds().toFloat(), 2.0f);
 
-        g.setColour (juce::Colour (0xFF00D2FF));
+        g.setColour (t.leftAccent);
         g.setFont (juce::Font ("Consolas", 14.0f, juce::Font::bold));
         
         juce::String headerText = "NAVY-ARP GRAPHIC MONITOR";
@@ -282,12 +368,12 @@ public:
             {
                 if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); // Beat 1: Green
                 else if (i == 4) g.setColour (juce::Colour (0xFFFF4C4C)); // Beat 5: Red
-                else             g.setColour (juce::Colour (0xFF00FFFF)); // Others: Cyan
+                else             g.setColour (t.leftAccent); // Matches the current theme's primary left accent [NEW]
                 g.fillRect (bar.expanded(1, 1));
             }
             else
             {
-                if (i % 3 == 0)      g.setColour (juce::Colour (0xFF00BCFF)); 
+                if (i % 3 == 0)      g.setColour (t.leftAccent.withAlpha (0.85f)); 
                 else if (i % 4 == 0) g.setColour (juce::Colour (0xFF9966FF)); 
                 else                 g.setColour (juce::Colour (0xFFFFAA00)); 
                 g.fillRect (bar);
@@ -301,7 +387,7 @@ public:
             {
                 if (i == 0)      g.setColour (juce::Colour (0xFF4CFF4C)); 
                 else if (i == 4) g.setColour (juce::Colour (0xFFFF4C4C)); 
-                else             g.setColour (juce::Colour (0xFF00FFFF));
+                else             g.setColour (t.leftAccent);
             }
             else
             {

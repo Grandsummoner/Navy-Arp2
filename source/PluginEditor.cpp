@@ -209,6 +209,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     scaleTypeAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::scaleType.getParamID(), scaleTypeBox);
     cycleLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::cycleLength.getParamID(), cycleLengthBox);
 
+    // Apply main frame click listener on background to handle contextual theme changes [NEW]
+    addMouseListener (this, false);
+
     setResizable (true, true);
     setResizeLimits (700, 460, 1400, 920);
     setSize (850, 560); 
@@ -270,7 +273,7 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
     }
 
     // 2. Right-Click LFO Modulation Menu Popup [NEW]
-    if (event.mods.isRightButtonDown())
+    if (event.mods.isRightButtonDown() && event.eventComponent != this)
     {
         juce::Slider* clickedSlider = nullptr;
         juce::String paramPrefix = "";
@@ -336,6 +339,26 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
             }
         }
     }
+
+    // 3. Right-Click Main Panel Background Context Menu Theme Switcher [NEW]
+    if (event.mods.isRightButtonDown() && event.eventComponent == this)
+    {
+        juce::PopupMenu menu;
+        menu.addSectionHeader ("SELECT PANEL THEME");
+        
+        int currentTheme = static_cast<int> (*processor.apvts.getRawParameterValue ("panelTheme"));
+        menu.addItem (100, "Navy Cyber (Dark Default)", true, (currentTheme == 0));
+        menu.addItem (101, "Skyline (Beige Eurorack)",   true, (currentTheme == 1));
+        menu.addItem (102, "Monochrome (Minimal Black)", true, (currentTheme == 2));
+        menu.addItem (103, "Matrix Terminal (Neon Green)", true, (currentTheme == 3));
+        
+        menu.showMenuAsync (juce::PopupMenu::Options(), [this](int result) {
+            if (result >= 100 && result <= 103) {
+                // Instantly update the state saved parameter inside the APVTS
+                processor.apvts.getParameter ("panelTheme")->setValueNotifyingHost (static_cast<float> (result - 100) / 3.0f);
+            }
+        });
+    }
 }
 
 void PluginEditor::timerCallback()
@@ -382,27 +405,50 @@ void PluginEditor::timerCallback()
         faderLabels[i]->setText (chromaticNotes[noteIndex], juce::dontSendNotification);
     }
 
+    // Update dynamically themed colors in real-time across auxiliary labels and buttons [NEW]
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+    auto t = AppTheme::get (themeIdx);
+
+    // Apply color-coded theme updates on labels
+    rhythmMorphTitle.setColour (juce::Label::textColourId, t.textDim);
+    restTitle.setColour (juce::Label::textColourId, t.textDim);
+    legatoTitle.setColour (juce::Label::textColourId, t.textDim);
+    rateTitle.setColour (juce::Label::textColourId, t.textDim);
+    entropyTitle.setColour (juce::Label::textColourId, t.textDim);
+    harmonyTitle.setColour (juce::Label::textColourId, t.textDim);
+    chaosTitle.setColour (juce::Label::textColourId, t.textDim);
+    octavesTitle.setColour (juce::Label::textColourId, t.textDim);
+
+    for (int i = 0; i < 8; ++i)
+        faderLabels[i]->setColour (juce::Label::textColourId, t.textDim);
+
+    // Dynamic LED toggle colors for main buttons
+    latchButton.setColour (juce::TextButton::textColourOffId, t.leftAccent);
+    chordModeButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+    diceMelodyButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+    diceRhythmButton.setColour (juce::TextButton::textColourOffId, t.rightAccent);
+
     // Keep Scene Active Button Colors Synced beautifully
     if (processor.hasSceneA)
     {
-        sceneAButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF00D2FF));
+        sceneAButton.setColour (juce::TextButton::buttonColourId, t.leftAccent);
         sceneAButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF000000));
     }
     else
     {
         sceneAButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF18181C));
-        sceneAButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF88888A));
+        sceneAButton.setColour (juce::TextButton::textColourOffId, t.textDim);
     }
 
     if (processor.hasSceneB)
     {
-        sceneBButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFFFFAA00));
+        sceneBButton.setColour (juce::TextButton::buttonColourId, t.rightAccent);
         sceneBButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF000000));
     }
     else
     {
         sceneBButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF18181C));
-        sceneBButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF88888A));
+        sceneBButton.setColour (juce::TextButton::textColourOffId, t.textDim);
     }
 
     // Dynamic preset saved status glow
@@ -410,13 +456,13 @@ void PluginEditor::timerCallback()
     {
         if (processor.isPresetSaved (i))
         {
-            presetButtons[i].setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF1A3A4A));
-            presetButtons[i].setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF00D2FF));
+            presetButtons[i].setColour (juce::TextButton::buttonColourId, t.leftAccent.withAlpha(0.22f));
+            presetButtons[i].setColour (juce::TextButton::textColourOffId, t.leftAccent);
         }
         else
         {
             presetButtons[i].setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF141416));
-            presetButtons[i].setColour (juce::TextButton::textColourOffId, juce::Colour (0xFF66666A));
+            presetButtons[i].setColour (juce::TextButton::textColourOffId, t.textDim);
         }
     }
 
@@ -433,13 +479,17 @@ void PluginEditor::timerCallback()
 
 void PluginEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xFF16181F));
-    g.setColour (juce::Colour (0xFF2A2E3D));
+    // Retrieve dynamic panel theme background [NEW]
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+    auto t = AppTheme::get (themeIdx);
+
+    g.fillAll (t.background);
+    g.setColour (t.border);
     g.drawRect (getLocalBounds().toFloat(), 3.0f);
     g.drawHorizontalLine (getHeight() - static_cast<int>(getHeight() * 0.22f), 15.0f, getWidth() - 15.0f);
 
     g.setFont (juce::Font (12.0f, juce::Font::bold));
-    g.setColour (juce::Colour (0xFF55555C));
+    g.setColour (t.textDim.withAlpha (0.7f));
     g.drawText ("RHYTHM", 15, 12, 100, 20, juce::Justification::left);
     g.drawText ("GENERATOR", getWidth() - 115, 12, 100, 20, juce::Justification::right);
 }

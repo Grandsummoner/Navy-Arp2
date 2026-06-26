@@ -15,7 +15,10 @@ namespace IDs
     DECLARE_ID(rootKey); DECLARE_ID(scaleType); DECLARE_ID(cycleLength);
     DECLARE_ID(rate); DECLARE_ID(octaves); 
 
-    // LFO Parameters for all 8 controls
+    // Dynamic Panel Theme selector parameter [1]
+    DECLARE_ID(panelTheme);
+
+    // LFO Parameters
     DECLARE_ID(rhythmMorphLfoRate); DECLARE_ID(rhythmMorphLfoDepth);
     DECLARE_ID(restLfoRate);        DECLARE_ID(restLfoDepth);
     DECLARE_ID(legatoLfoRate);      DECLARE_ID(legatoLfoDepth);
@@ -91,15 +94,14 @@ public:
     int currentStep = 0;
     int currentBarInCycle = 1;
 
-    // Multi-thread safe communication
     std::atomic<bool> isCurrentlyPlayingUI { false };
     std::atomic<int> activeChordExtensionType { 0 }; 
 
-    // Public active values modulated in real-time by the internal LFOs
+    // Modulated values computed in processBlock and used inside GUI thread
     float activeMorph = 0.0f;
     float activeRest = 0.1f;
     float activeLegato = 0.5f;
-    int activeRateIdx = 2; // 0 = 1/4, 1 = 1/8, 2 = 1/16, 3 = 1/32
+    int activeRateIdx = 2; 
     float activeEntropy = 0.0f;
     float activeHarmony = 0.0f;
     float activeChaos = 0.0f;
@@ -127,7 +129,6 @@ private:
     
     std::vector<std::pair<int, int>> scheduledNoteOffs;
 
-    // 8 Independent LFO phases
     double lfoPhases[8] = { 0.0 };
 
     double lfoPhaseEntropy = 0.0;
