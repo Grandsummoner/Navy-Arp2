@@ -22,12 +22,12 @@ void PluginProcessor::setCurrentProgram (int index) { juce::ignoreUnused (index)
 const juce::String PluginProcessor::getProgramName (int index) { juce::ignoreUnused (index); return {}; }
 void PluginProcessor::changeProgramName (int index, const juce::String& newName) { juce::ignoreUnused (index, newName); }
 
-bool PluginProcessor::hasEditor() const { return true; } // Clean inline [5]
-juce::AudioProcessorEditor* PluginProcessor::createEditor() { return new PluginEditor (*this); } // Clean inline [5]
+bool PluginProcessor::hasEditor() const { return true; }
+juce::AudioProcessorEditor* PluginProcessor::createEditor() { return new PluginEditor (*this); }
 
 void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    mSampleRate = sampleRate; mStopTimer = false; mLastStep = -1; mLastNotePlayed = -1; mNoteOffTime = 0; mTimeInSamples = 0;
+    mSampleRate = sampleRate; mLastStep = -1; mLastNotePlayed = -1; mNoteOffTime = 0; mTimeInSamples = 0;
     activeHeldNotes.clear(); latchedNotes.clear(); scheduledNoteOffs.clear();
     std::fill (std::begin (lfoPhases), std::end (lfoPhases), 0.0);
     isFirstNoteOfNewChord = true; juce::ignoreUnused (samplesPerBlock);
@@ -83,7 +83,6 @@ void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
     updateFocusValue (IDs::octaves,     7, IDs::octavesLfoRate,     IDs::octavesLfoDepth,     15);
     for (int i = 0; i < 8; ++i) updateFocusValue (juce::ParameterID ("fader" + juce::String (i + 1), 1), i, IDs::rhythmMorphLfoRate, IDs::rhythmMorphLfoDepth, i);
 
-    // 8-Channel LFO Modulation Matrix Lambda
     auto applyLfo = [&](int index, juce::ParameterID baseId, juce::ParameterID rateId, juce::ParameterID depthId, float minVal, float maxVal) -> float {
         float baseVal = *apvts.getRawParameterValue (baseId.getParamID());
         int rateChoice = static_cast<int> (*apvts.getRawParameterValue (rateId.getParamID()));
