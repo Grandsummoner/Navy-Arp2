@@ -468,28 +468,28 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
 void PluginEditor::timerCallback()
 {
     float morphValue = morphCrossfader.getValue();
-    int activeA = processor.activeSceneAIndex.load();
-    int activeB = processor.activeSceneBIndex.load();
+    int currentActiveA = processor.activeSceneAIndex.load(); // Corrected identifier name [NEW]
+    int currentActiveB = processor.activeSceneBIndex.load(); // Corrected identifier name [NEW]
 
     // Motorized Parameter Gliding: pull morphs from dynamic 4-slot presets [NEW]
-    if (processor.isSceneASaved (activeA) && processor.isSceneBSaved (activeB) && morphCrossfader.isMouseButtonDown())
+    if (processor.isSceneASaved (currentActiveA) && processor.isSceneBSaved (currentActiveB) && morphCrossfader.isMouseButtonDown())
     {
         for (int i = 0; i < 8; ++i)
         {
-            float targetValue = (processor.sceneAPresets[activeA].faders[i] * (1.0f - morphValue)) + (processor.sceneBPresets[activeB].faders[i] * morphValue);
+            float targetValue = (processor.sceneAPresets[currentActiveA].faders[i] * (1.0f - morphValue)) + (processor.sceneBPresets[currentActiveB].faders[i] * morphValue);
             processor.apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (targetValue);
         }
 
-        processor.apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[activeA].rhythmMorph * (1.0f - morphValue)) + (processor.sceneBPresets[activeB].rhythmMorph * morphValue));
-        processor.apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[activeA].rest * (1.0f - morphValue)) + (processor.sceneBPresets[activeB].rest * morphValue));
-        processor.apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[activeA].legato * (1.0f - morphValue)) + (processor.sceneBPresets[activeB].legato * morphValue));
+        processor.apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[currentActiveA].rhythmMorph * (1.0f - morphValue)) + (processor.sceneBPresets[currentActiveB].rhythmMorph * morphValue));
+        processor.apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[currentActiveA].rest * (1.0f - morphValue)) + (processor.sceneBPresets[currentActiveB].rest * morphValue));
+        processor.apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[currentActiveA].legato * (1.0f - morphValue)) + (processor.sceneBPresets[currentActiveB].legato * morphValue));
         
-        processor.apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost (((processor.sceneAPresets[activeA].entropy + 1.0f) * 0.5f * (1.0f - morphValue)) + ((processor.sceneBPresets[activeB].entropy + 1.0f) * 0.5f * morphValue));
-        processor.apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[activeA].harmony * (1.0f - morphValue)) + (processor.sceneBPresets[activeB].harmony * morphValue));
-        processor.apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[activeA].chaos * (1.0f - morphValue)) + (processor.sceneBPresets[activeB].chaos * morphValue));
+        processor.apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost (((processor.sceneAPresets[currentActiveA].entropy + 1.0f) * 0.5f * (1.0f - morphValue)) + ((processor.sceneBPresets[currentActiveB].entropy + 1.0f) * 0.5f * morphValue));
+        processor.apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[currentActiveA].harmony * (1.0f - morphValue)) + (processor.sceneBPresets[currentActiveB].harmony * morphValue));
+        processor.apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost ((processor.sceneAPresets[currentActiveA].chaos * (1.0f - morphValue)) + (processor.sceneBPresets[currentActiveB].chaos * morphValue));
         
-        processor.apvts.getParameter (IDs::rate.getParamID())->setValueNotifyingHost (((processor.sceneAPresets[activeA].rate / 3.0f) * (1.0f - morphValue)) + ((processor.sceneBPresets[activeB].rate / 3.0f) * morphValue));
-        processor.apvts.getParameter (IDs::octaves.getParamID())->setValueNotifyingHost (((processor.sceneAPresets[activeA].octaves + 2.0f) / 5.0f * (1.0f - morphValue)) + ((processor.sceneBPresets[activeB].octaves + 2.0f) / 5.0f * morphValue));
+        processor.apvts.getParameter (IDs::rate.getParamID())->setValueNotifyingHost (((processor.sceneAPresets[currentActiveA].rate / 3.0f) * (1.0f - morphValue)) + ((processor.sceneBPresets[currentActiveB].rate / 3.0f) * morphValue));
+        processor.apvts.getParameter (IDs::octaves.getParamID())->setValueNotifyingHost (((processor.sceneAPresets[currentActiveA].octaves + 2.0f) / 5.0f * (1.0f - morphValue)) + ((processor.sceneBPresets[currentActiveB].octaves + 2.0f) / 5.0f * morphValue));
     }
 
     // Dynamic Fader Labels updating to show current scale notes based on selected Key/Scale
