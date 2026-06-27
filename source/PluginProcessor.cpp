@@ -29,6 +29,7 @@ void PluginProcessor::scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int de
     else scheduledNoteOffs.push_back ({ pitch, delaySamples });
 }
 
+// Active Anchor State & Snapshot snap routines
 void PluginProcessor::setActiveAnchor (bool useSceneB)
 {
     if (isSceneBActiveAnchor.load() == useSceneB) return;
@@ -65,12 +66,16 @@ void PluginProcessor::captureActiveParametersToActiveScene()
 
 void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
 {
+    // Auto-record active parameters to the active scene in real-time
     captureActiveParametersToActiveScene();
+
+    // Check if the Scene Target Anchor switched
     bool isSceneBActive = isSceneBActiveAnchor.load();
     if (isSceneBActive != lastSceneBActiveState)
     {
         lastSceneBActiveState = isSceneBActive;
         SceneState& targetScene = isSceneBActive ? sceneB : sceneA;
+        
         apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost (targetScene.rhythmMorph);
         apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost (targetScene.rest);
         apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost (targetScene.legato);
@@ -87,6 +92,7 @@ void PluginProcessor::updateLfoModulations (int numSamples, double bpm)
     int cycleIndex = juce::jlimit (0, 3, static_cast<int> (*apvts.getRawParameterValue (IDs::cycleLength.getParamID())));
     currentBarInCycle = (static_cast<int>(std::floor(mSongPositionPPQ / 4.0)) % ((cycleIndex == 0) ? 1 : (cycleIndex == 1) ? 2 : (cycleIndex == 2) ? 4 : 8)) + 1;
 
+    // Crossfader morphing interpolation (Governed strictly by crossfader position)
     float morphVal = *apvts.getRawParameterValue (IDs::morph.getParamID());
     auto morphValue = [&](float valA, float valB) -> float { return (valA * (1.0f - morphVal)) + (valB * morphVal); };
 
@@ -131,8 +137,36 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     bool isLatchActive = *apvts.getRawParameterValue (IDs::latch.getParamID()) > 0.5f, isArpActive = *apvts.getRawParameterValue (IDs::arpSeq.getParamID()) > 0.5f;
     bool isPolyActive = *apvts.getRawParameterValue (IDs::poly.getParamID()) > 0.5f, isFreezeActive = *apvts.getRawParameterValue (IDs::freeze.getParamID()) > 0.5f;
 
+    // Snapshot Freeze Caching (Captures note pool, parameters, and faders)
+    if (isFreezeActive && !lastFreezeState) {
+        lastFreezeState = true;
+        frozenActiveHeldNotes = activeHeldNotes;
+        frozenLatchedNotes = latchedNotes;
+        frozenMorph = activeMorph;
+        frozenRest = modRest;
+        frozenLegato = modLegato;
+        frozenEntropy = modEntropy;
+        frozenHarmony = modHarmony;
+        frozenChaos = modChaos;
+        frozenRateIdx = activeRateIdx;
+        frozenOctavesVal = activeOctavesVal;
+        
+        float morphVal = *apvts.getRawParameterValue (IDs::morph.getParamID());
+        for (int i = 0; i < 8; ++i) {
+            frozenFaders[i] = (sceneA.faders[i] * (1.0f - morphVal)) + (sceneB.faders[i] * morphVal);
+        }
+    } else if (!isFreezeActive && lastFreezeState) {
+        lastFreezeState = false;
+    }
+
     if (!isLatchActive) { latchedNotes.clear(); isFirstNoteOfNewChord = true; }
-    float activeFaderProb[8]; for (int i = 0; i < 8; ++i) activeFaderProb[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1)));
+    
+    // Morph active faders in real-time based on crossfader
+    float morphedFaders[8];
+    float morphVal = *apvts.getRawParameterValue (IDs::morph.getParamID());
+    for (int i = 0; i < 8; ++i) {
+        morphedFaders[i] = (sceneA.faders[i] * (1.0f - morphVal)) + (sceneB.faders[i] * morphVal);
+    }
 
     juce::MidiBuffer processedMidi;
     for (auto it = scheduledNoteOffs.begin(); it != scheduledNoteOffs.end();) {
@@ -159,13 +193,16 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     }
     midiMessages.clear();
     
-    std::vector<int> notesToPlay = isLatchActive ? latchedNotes : activeHeldNotes;
+    std::vector<int> notesToPlay = isFreezeActive ? (isLatchActive ? frozenLatchedNotes : frozenActiveHeldNotes) : (isLatchActive ? latchedNotes : activeHeldNotes);
     isCurrentlyPlayingUI.store (!notesToPlay.empty() || isFreezeActive);
 
     if (!notesToPlay.empty() || isFreezeActive) {
         bool stepTriggered = false; double samplesPerBeat = mSampleRate * (60.0 / (bpm > 0 ? bpm : 120.0));
-        double stepLengthPPQ = (activeRateIdx == 0) ? 1.0 : (activeRateIdx == 1) ? 0.5 : (activeRateIdx == 2) ? 0.25 : 0.125, stepSamples = samplesPerBeat * stepLengthPPQ;
-        double swingOffset = 0.08 * activeMorph * stepLengthPPQ, triggerThreshold = stepLengthPPQ;
+        int currentRate = isFreezeActive ? frozenRateIdx : activeRateIdx;
+        double stepLengthPPQ = (currentRate == 0) ? 1.0 : (currentRate == 1) ? 0.5 : (currentRate == 2) ? 0.25 : 0.125, stepSamples = samplesPerBeat * stepLengthPPQ;
+        
+        float currentMorph = isFreezeActive ? frozenMorph : activeMorph;
+        double swingOffset = 0.08 * currentMorph * stepLengthPPQ, triggerThreshold = stepLengthPPQ;
         if (currentStep % 2 == 1) triggerThreshold += swingOffset;
 
         if (isPlaying) {
@@ -178,12 +215,13 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         }
 
         if (stepTriggered) {
+            float currentEntropy = isFreezeActive ? frozenEntropy : modEntropy;
             int playDirection = 0; 
-            if (activeEntropy >= -0.1f && activeEntropy <= 0.1f) playDirection = 0;
-            else if (activeEntropy > 0.1f && activeEntropy <= 0.5f) playDirection = 1;
-            else if (activeEntropy > 0.5f) playDirection = 2;
-            else if (activeEntropy < -0.1f && activeEntropy >= -0.5f) playDirection = 3;
-            else if (activeEntropy < -0.5f) playDirection = 4;
+            if (currentEntropy >= -0.1f && currentEntropy <= 0.1f) playDirection = 0;
+            else if (currentEntropy > 0.1f && currentEntropy <= 0.5f) playDirection = 1;
+            else if (currentEntropy > 0.5f) playDirection = 2;
+            else if (currentEntropy < -0.1f && currentEntropy >= -0.5f) playDirection = 3;
+            else if (currentEntropy < -0.5f) playDirection = 4;
 
             static bool goingForward = true;
             if (playDirection == 1) { 
@@ -201,8 +239,9 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             }
             mLastStep = currentStep;
 
-            float faderProb = activeFaderProb[currentStep];
-            if (juce::Random::getSystemRandom().nextFloat() <= faderProb && !(juce::Random::getSystemRandom().nextFloat() <= modRest)) {
+            float faderProb = isFreezeActive ? frozenFaders[currentStep] : morphedFaders[currentStep];
+            float currentRest = isFreezeActive ? frozenRest : modRest;
+            if (juce::Random::getSystemRandom().nextFloat() <= faderProb && !(juce::Random::getSystemRandom().nextFloat() <= currentRest)) {
                 if (mLastNotePlayed != -1) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; }
                 int rootKeyIdx = juce::jlimit (0, 11, static_cast<int> (*apvts.getRawParameterValue (IDs::rootKey.getParamID())));
                 int scaleIdx = juce::jlimit (0, 9, static_cast<int> (*apvts.getRawParameterValue (IDs::scaleType.getParamID())));
@@ -222,8 +261,9 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                 else { rawPitch = 48 + rootKeyIdx + scaleOffsets[currentStep % scaleOffsets.size()]; octaveBase = ((rawPitch - rootKeyIdx) / 12) * 12 + rootKeyIdx; }
 
                 std::vector<int> pitchList; pitchList.push_back (rawPitch);
+                float currentHarmony = isFreezeActive ? frozenHarmony : modHarmony;
                 if (isPolyActive) {
-                    int maxAllowedNotes = (modHarmony > 0.25f && modHarmony < 0.5f) ? 2 : (modHarmony >= 0.5f && modHarmony < 0.75f) ? 3 : (modHarmony >= 0.75f) ? 4 : 1;
+                    int maxAllowedNotes = (currentHarmony > 0.25f && currentHarmony < 0.5f) ? 2 : (currentHarmony >= 0.5f && currentHarmony < 0.75f) ? 3 : (currentHarmony >= 0.75f) ? 4 : 1;
                     if (maxAllowedNotes > 1) { for (int n = 1; n < maxAllowedNotes; ++n) pitchList.push_back (octaveBase + scaleOffsets[(currentStep + n * 2) % scaleOffsets.size()]); }
                 }
 
@@ -233,11 +273,14 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                     pitch = octBase + nearestVal;
                 }
 
-                int rangeShift = activeOctavesVal, octaveShiftCount = (rangeShift > 0) ? ((currentStep / 2) % (rangeShift + 1)) : ((rangeShift < 0) ? -((currentStep / 2) % (std::abs(rangeShift) + 1)) : 0);
+                int rangeShift = isFreezeActive ? frozenOctavesVal : activeOctavesVal;
+                int octaveShiftCount = (rangeShift > 0) ? ((currentStep / 2) % (rangeShift + 1)) : ((rangeShift < 0) ? -((currentStep / 2) % (std::abs(rangeShift) + 1)) : 0);
+                float currentChaos = isFreezeActive ? frozenChaos : modChaos;
+                float currentLegato = isFreezeActive ? frozenLegato : modLegato;
                 for (auto pitch : pitchList) {
-                    int targetPitch = juce::jlimit(0, 127, pitch + (octaveShiftCount * 12) + ((modChaos > 0.2f && juce::Random::getSystemRandom().nextFloat() <= modChaos) ? (juce::Random::getSystemRandom().nextBool() ? 12 : -12) : 0));
+                    int targetPitch = juce::jlimit(0, 127, pitch + (octaveShiftCount * 12) + ((currentChaos > 0.2f && juce::Random::getSystemRandom().nextFloat() <= currentChaos) ? (juce::Random::getSystemRandom().nextBool() ? 12 : -12) : 0));
                     processedMidi.addEvent (juce::MidiMessage::noteOn (1, targetPitch, static_cast<juce::uint8>(100)), 0);
-                    mLastNotePlayed = targetPitch; mNoteOffTime = static_cast<int>(stepSamples * modLegato); scheduleNoteOff (processedMidi, targetPitch, mNoteOffTime);
+                    mLastNotePlayed = targetPitch; mNoteOffTime = static_cast<int>(stepSamples * currentLegato); scheduleNoteOff (processedMidi, targetPitch, mNoteOffTime);
                 }
             }
         }

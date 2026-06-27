@@ -227,7 +227,6 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     }
 }
 
-// Definition of private helper method to resolve link errors
 void ChromaCapsLookAndFeel::drawVectorDice (juce::Graphics& g, juce::Rectangle<float> bounds, juce::Colour pipColour)
 {
     auto diceFace = bounds.reduced (1.0f);

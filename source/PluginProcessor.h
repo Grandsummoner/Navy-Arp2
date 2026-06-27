@@ -118,5 +118,13 @@ private:
     float currentSlewTarget[24] = { 0.0f }, currentSlewValue[24] = { 0.0f };
     bool lastSceneBActiveState = false;
 
+    // Snapshot freeze cache variables
+    float frozenFaders[8] = { 0.5f };
+    std::vector<int> frozenActiveHeldNotes;
+    std::vector<int> frozenLatchedNotes;
+    float frozenMorph = 0.0f, frozenRest = 0.1f, frozenLegato = 0.5f, frozenEntropy = 0.0f, frozenHarmony = 0.0f, frozenChaos = 0.0f;
+    int frozenRateIdx = 2, frozenOctavesVal = 0;
+    bool lastFreezeState = false;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };
