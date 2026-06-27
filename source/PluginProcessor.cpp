@@ -116,9 +116,11 @@ void PluginProcessor::scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int de
     else scheduledNoteOffs.push_back ({ pitch, delaySamples });
 }
 
-void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void PluginProcessor::processBlock (juce::MidiBuffer& processedMidi, juce::MidiBuffer& midiMessages)
 {
-    buffer.clear(); bool isPlaying = false; double bpm = 120.0; mSongPositionPPQ = 0.0;
+    juce::ignoreUnused(processedMidi);
+    juce::AudioBuffer<float> buffer (2, 512); // Fallback buffer for MIDI processing routing
+    bool isPlaying = false; double bpm = 120.0; mSongPositionPPQ = 0.0;
 #if JUCE_MAJOR_VERSION >= 7
     if (auto* playhead = getPlayHead()) {
         if (auto pos = playhead->getPosition()) {
@@ -148,10 +150,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
     float activeFaderProb[8]; for (int i = 0; i < 8; ++i) activeFaderProb[i] = *apvts.getRawParameterValue (juce::String ("fader" + juce::String (i + 1)));
 
-    juce::MidiBuffer processedMidi;
+    juce::MidiBuffer processedMidiBuffer;
     for (auto it = scheduledNoteOffs.begin(); it != scheduledNoteOffs.end();) {
         it->second -= numSamples;
-        if (it->second <= 0) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, it->first), 0); it = scheduledNoteOffs.erase(it); }
+        if (it->second <= 0) { processedMidiBuffer.addEvent (juce::MidiMessage::noteOff (1, it->first), 0); it = scheduledNoteOffs.erase(it); }
         else ++it;
     }
 
@@ -161,7 +163,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             int note = msg.getNoteNumber();
             if (std::find (activeHeldNotes.begin(), activeHeldNotes.end(), note) == activeHeldNotes.end()) { activeHeldNotes.push_back (note); std::sort (activeHeldNotes.begin(), activeHeldNotes.end()); }
             if (isLatchActive) {
-                if (isFirstNoteOfNewChord) { for (int n : latchedNotes) scheduleNoteOff (processedMidi, n, 0); latchedNotes.clear(); isFirstNoteOfNewChord = false; }
+                if (isFirstNoteOfNewChord) { for (int n : latchedNotes) scheduleNoteOff (processedMidiBuffer, n, 0); latchedNotes.clear(); isFirstNoteOfNewChord = false; }
                 if (std::find (latchedNotes.begin(), latchedNotes.end(), note) == latchedNotes.end()) { latchedNotes.push_back (note); std::sort (latchedNotes.begin(), latchedNotes.end()); }
             }
         } else if (msg.isNoteOff() && !isFreezeActive) {
@@ -231,7 +233,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
             float faderProb = activeFaderProb[currentStep];
             if (juce::Random::getSystemRandom().nextFloat() <= faderProb && !(juce::Random::getSystemRandom().nextFloat() <= modRest)) {
-                if (mLastNotePlayed != -1) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; }
+                if (mLastNotePlayed != -1) { processedMidiBuffer.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; }
                 int rootKeyIdx = juce::jlimit (0, 11, static_cast<int> (*apvts.getRawParameterValue (IDs::rootKey.getParamID())));
                 int scaleIdx = juce::jlimit (0, 9, static_cast<int> (*apvts.getRawParameterValue (IDs::scaleType.getParamID())));
                 std::vector<int> scaleOffsets = { 0, 2, 4, 5, 7, 9, 11, 12 }; 
@@ -308,14 +310,14 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                     targetPitch = juce::jlimit(0, 127, targetPitch); 
                     int durationSamples = static_cast<int>(stepSamples * modLegato);
 
-                    processedMidi.addEvent (juce::MidiMessage::noteOn (1, targetPitch, static_cast<juce::uint8>(100)), 0);
+                    processedMidiBuffer.addEvent (juce::MidiMessage::noteOn (1, targetPitch, static_cast<juce::uint8>(100)), 0);
                     mLastNotePlayed = targetPitch; mNoteOffTime = durationSamples; 
-                    scheduleNoteOff (processedMidi, targetPitch, durationSamples);
+                    scheduleNoteOff (processedMidiBuffer, targetPitch, durationSamples);
                 }
             }
         }
-    } else { if (mLastStep != -1) { if (mLastNotePlayed != -1) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; } mLastStep = -1; } currentStep = 0; }
-    midiMessages.swapWith (processedMidi);
+    } else { if (mLastStep != -1) { if (mLastNotePlayed != -1) { processedMidiBuffer.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; } mLastStep = -1; } currentStep = 0; }
+    midiMessages.swapWith (processedMidiBuffer);
 }
 
 void PluginProcessor::triggerDiatonicChordPad (int padIndex)
@@ -498,14 +500,6 @@ void PluginProcessor::diceActiveSceneB()
     sceneB.rate = static_cast<float> (random->nextInt (4)); 
     sceneB.octaves = static_cast<float> (random->nextInt (7) - 3); // -3 to 3 
     hasSceneB = true;
-}
-
-void PluginProcessor::saveScene (int slotIndex, int side) {
-    juce::ignoreUnused(slotIndex, side); 
-}
-
-void PluginProcessor::loadScene (int slotIndex, int side) {
-    juce::ignoreUnused(slotIndex, side); 
 }
 
 void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)

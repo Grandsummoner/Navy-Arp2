@@ -290,8 +290,6 @@ void PluginEditor::parameterChanged (const juce::String& parameterID, float newV
 
 void PluginEditor::mouseDown (const juce::MouseEvent& event)
 {
-    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
-
     // 1. Preset Slot Interactions (Recall is instant-tap with auto-reset, Save is hold-to-save)
     for (int i = 0; i < 8; ++i)
     {
@@ -322,7 +320,7 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
         }
     }
 
-    // 2. Left-hand 2x2 Utility long-press armings
+    // 2. Left-hand 2x2 Utility long-press armings [NEW - Removed unused themeIdx initialization]
     if (event.eventComponent == &saveButton)
     {
         savePressStartTime = juce::Time::getMillisecondCounter();
@@ -497,16 +495,29 @@ void PluginEditor::timerCallback()
         processor.isSceneBActiveAnchor.store (morphValue > 0.5f);
     }
 
-    // Apply dynamic panel theme color-coded updates on labels
-    rhythmMorphTitle.setColour (juce::Label::textColourId, t.textDim);
-    restTitle.setColour (juce::Label::textColourId, t.textDim);
-    legatoTitle.setColour (juce::Label::textColourId, t.textDim);
-    rateTitle.setColour (juce::Label::textColourId, t.textDim);
-    entropyTitle.setColour (juce::Label::textColourId, t.textDim);
-    harmonyTitle.setColour (juce::Label::textColourId, t.textDim);
-    chaosTitle.setColour (juce::Label::textColourId, t.textDim);
-    octavesTitle.setColour (juce::Label::textColourId, t.textDim);
+    // Motorized Parameter Gliding: pull morphs from our active sceneA and sceneB [NEW]
+    if (processor.hasSceneA && processor.hasSceneB && morphCrossfader.isMouseButtonDown())
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            float targetValue = (processor.sceneA.faders[i] * (1.0f - morphValue)) + (processor.sceneB.faders[i] * morphValue);
+            processor.apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (targetValue);
+        }
 
+        processor.apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost ((processor.sceneA.rhythmMorph * (1.0f - morphValue)) + (processor.sceneB.rhythmMorph * morphValue));
+        processor.apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost ((processor.sceneA.rest * (1.0f - morphValue)) + (processor.sceneB.rest * morphValue));
+        processor.apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost ((processor.sceneA.legato * (1.0f - morphValue)) + (processor.sceneB.legato * morphValue));
+        
+        processor.apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost (((processor.sceneA.entropy + 1.0f) * 0.5f * (1.0f - morphValue)) + ((processor.sceneB.entropy + 1.0f) * 0.5f * morphValue));
+        processor.apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost ((processor.sceneA.harmony * (1.0f - morphValue)) + (processor.sceneB.harmony * morphValue));
+        processor.apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost ((processor.sceneA.chaos * (1.0f - morphValue)) + (processor.sceneB.chaos * morphValue));
+        
+        processor.apvts.getParameter (IDs::rate.getParamID())->setValueNotifyingHost (((processor.sceneA.rate / 3.0f) * (1.0f - morphValue)) + ((processor.sceneB.rate / 3.0f) * morphValue));
+        processor.apvts.getParameter (IDs::octaves.getParamID())->setValueNotifyingHost (((processor.sceneA.octaves + 3.0f) / 6.0f * (1.0f - morphValue)) + ((processor.sceneB.octaves + 3.0f) / 6.0f * morphValue));
+    }
+
+    // Apply dynamic panel theme color-coded updates on labels (Locally declared faderLabels pointer list) [NEW - FIXES C2065]
+    juce::Label* faderLabels[] = { &faderLabel1, &faderLabel2, &faderLabel3, &faderLabel4, &faderLabel5, &faderLabel6, &faderLabel7, &faderLabel8 };
     for (int i = 0; i < 8; ++i)
         faderLabels[i]->setColour (juce::Label::textColourId, t.textDim);
 
