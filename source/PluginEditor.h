@@ -87,7 +87,6 @@ public:
                            float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
                            juce::Slider& slider) override
     {
-        // Resolved compiler error: auto bounds was properly initialized
         auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
         auto knobBounds = bounds.reduced (16.0f);
         auto radius = juce::jmin (knobBounds.getWidth(), knobBounds.getHeight()) / 2.0f;
@@ -265,24 +264,4 @@ private:
 
     juce::ComboBox rootKeyBox, scaleTypeBox, cycleLengthBox;
 
-    uint32_t sceneAPressStartTime = 0, sceneBPressStartTime = 0;
-    bool sceneAAlreadySaved = false, sceneBAlreadySaved = false;
-    int sceneAFlashTimer = 0, sceneBFlashTimer = 0;
-
-    uint32_t presetPressStartTime[8] = { 0 };
-    bool presetAlreadySaved[8] = { false };
-    int presetFlashTimer[8] = { 0 }, presetFlashType[8] = { 0 }; 
-
-    uint32_t savePressStartTime = 0, recallPressStartTime = 0, copyPressStartTime = 0, initPressStartTime = 0;
-    bool saveAlreadySaved = false, recallAlreadySaved = false, copyAlreadySaved = false, initAlreadySaved = false;
-    int saveFlashTimer = 0, recallFlashTimer = 0, copyFlashTimer = 0, initFlashTimer = 0;
-
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fader1Attachment, fader2Attachment, fader3Attachment, fader4Attachment, fader5Attachment, fader6Attachment, fader7Attachment, fader8Attachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rhythmMorphAttachment, restAttachment, legatoAttachment, rateAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> entropyAttachment, harmonyAttachment, chaosAttachment, octavesAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> morphAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> latchAttachment, arpSeqAttachment, polyAttachment, freezeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rootKeyAttachment, scaleTypeAttachment, cycleLengthAttachment;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
-};
+    uint32_t sceneAPressStartTime = 0, scen
