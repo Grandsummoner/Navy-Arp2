@@ -1,139 +1,14 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "OledDisplay.h"
+#include "ChromaCapsLookAndFeel.h"
+#include "AppTheme.h"
 
-// ==============================================================================
-// Custom LookAndFeel Fader & Slider Painting [NEW]
-// ==============================================================================
-void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
-                                              float sliderPos, float minSliderPos, float maxSliderPos,
-                                              const juce::Slider::SliderStyle style, juce::Slider& slider)
-{
-    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
-    auto t = AppTheme::get (themeIdx);
-
-    if (style == juce::Slider::LinearVertical) {
-        auto trackWidth = 4.0f, trackX = x + width * 0.5f - trackWidth * 0.5f;
-        g.setColour (t.trackBg); g.fillRoundedRectangle (trackX, (float)y, trackWidth, (float)height, trackWidth * 0.5f);
-        g.setColour (t.slotOutline); g.drawRoundedRectangle (trackX - 1.0f, (float)y, trackWidth + 2.0f, (float)height, trackWidth * 0.5f, 1.0f);
-
-        float capWidth = juce::jmin (26.0f, width * 0.8f), capHeight = 14.0f;
-        float capX = x + width * 0.5f - capWidth * 0.5f, capY = sliderPos - capHeight * 0.5f;
-        g.setColour (juce::Colour (themeIdx == 1 ? 0x15000000 : 0x45000000));
-        g.fillRoundedRectangle (capX + 1.0f, capY + 3.0f, capWidth, capHeight, 2.0f);
-
-        juce::Colour capBaseCol = t.faderCap;
-        juce::ColourGradient capGrad (capBaseCol.brighter (0.1f), capX, capY, capBaseCol.darker (0.2f), capX, capY + capHeight, false);
-        g.setGradientFill (capGrad); g.fillRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f);
-        g.setColour (juce::Colour (0xFF3A3F4E)); g.drawRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f, 1.0f);
-        g.setColour (slider.findColour (juce::Slider::thumbColourId)); g.fillRect (capX + 2.0f, capY + capHeight * 0.5f - 1.0f, capWidth - 4.0f, 2.0f);
-    }
-    else if (style == juce::Slider::LinearHorizontal) {
-        auto trackHeight = 4.0f, trackY = y + height * 0.5f - trackHeight * 0.5f;
-        g.setColour (t.trackBg); g.fillRoundedRectangle ((float)x, trackY, (float)width, trackHeight, trackHeight * 0.5f);
-        g.setColour (t.slotOutline); g.drawRoundedRectangle ((float)x, trackY, (float)width, trackHeight, trackHeight * 0.5f, 1.0f);
-
-        float capWidth = 28.0f, capHeight = 16.0f;
-        float capX = sliderPos - capWidth * 0.5f, capY = y + height * 0.5f - capHeight * 0.5f;
-        g.setColour (juce::Colour (themeIdx == 1 ? 0x15000000 : 0x45000000)); g.fillRoundedRectangle (capX + 1.0f, capY + 3.0f, capWidth, capHeight, 2.0f);
-
-        juce::Colour capBaseCol = t.faderCap;
-        juce::ColourGradient capGrad (capBaseCol.brighter (0.1f), capX, capY, capBaseCol.darker (0.2f), capX, capY + capHeight, false);
-        g.setGradientFill (capGrad); g.fillRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f);
-        g.setColour (juce::Colour (0xFF3A3F4E)); g.drawRoundedRectangle (capX, capY, capWidth, capHeight, 2.0f, 1.0f);
-
-        float blendVal = (sliderPos - minSliderPos) / (maxSliderPos - minSliderPos);
-        g.setColour (t.leftAccent.interpolatedWith (t.rightAccent, blendVal));
-        g.fillRect (capX + capWidth * 0.5f - 1.0f, capY + 2.0f, 2.0f, capHeight - 4.0f);
-    }
-    else {
-        juce::LookAndFeel_V4::drawLinearSlider (g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
-    }
-}
-
-// ==============================================================================
-// Custom LookAndFeel Button Painting Implementations
-// ==============================================================================
-void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
-                                                  bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
-{
-    juce::ignoreUnused (backgroundColour); auto bounds = button.getLocalBounds().toFloat();
-    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load()); auto t = AppTheme::get (themeIdx);
-
-    bool isToggled = button.getToggleState(), isDown = shouldDrawButtonAsDown, isOver = shouldDrawButtonAsHighlighted;
-    juce::String id = button.getComponentID();
-
-    // 1. Symmetrical Scene Target Highlight (Only active anchor is lit, otherwise dark)
-    if (button.getButtonText() == "A") {
-        bool isBActive = processor.isSceneBActiveAnchor.load();
-        g.setColour (!isBActive ? t.leftAccent.withAlpha (isDown ? 0.8f : (isOver ? 0.5f : 0.35f)) : juce::Colour (0xFF151515)); g.fillRoundedRectangle (bounds, 4.0f);
-        g.setColour (!isBActive ? t.leftAccent : t.border); g.drawRoundedRectangle (bounds, 4.0f, 1.2f); return;
-    }
-    else if (button.getButtonText() == "B") {
-        bool isBActive = processor.isSceneBActiveAnchor.load();
-        g.setColour (isBActive ? t.leftAccent.withAlpha (isDown ? 0.8f : (isOver ? 0.5f : 0.35f)) : juce::Colour (0xFF151515)); g.fillRoundedRectangle (bounds, 4.0f);
-        g.setColour (isBActive ? t.leftAccent : t.border); g.drawRoundedRectangle (bounds, 4.0f, 1.2f); return;
-    }
-
-    // 2. Preset buttons with active storage light states & tap flash confirmations
-    int presetIdx = button.getButtonText().getIntValue() - 1;
-    if (presetIdx >= 0 && presetIdx < 8 && id.isEmpty()) {
-        if (editor != nullptr) {
-            int flashTimer = editor->presetFlashTimer[presetIdx], flashType = editor->presetFlashType[presetIdx];
-            if (flashTimer > 0) {
-                float alpha = static_cast<float> (flashTimer) / 24.0f; juce::Colour flashCol = (flashType == 1) ? juce::Colour (0xFFFFB300) : juce::Colour (0xFF00D2FF);
-                g.setColour (flashCol.withAlpha (alpha * 0.4f)); g.fillRoundedRectangle (bounds, 4.0f);
-                g.setColour (flashCol.withAlpha (alpha)); g.drawRoundedRectangle (bounds, 4.0f, 1.8f); return;
-            }
-        }
-        bool hasPreset = processor.isPresetSaved (presetIdx);
-        g.setColour (hasPreset ? t.leftAccent.withAlpha (0.12f) : juce::Colour (0xFF141416)); g.fillRoundedRectangle (bounds, 4.0f);
-        g.setColour (hasPreset ? t.leftAccent.withAlpha (0.6f) : t.unlitLed); g.drawRoundedRectangle (bounds, 4.0f, 1.2f); return;
-    }
-
-    // 3. Performance & Utility Buttons (Save, Recall, Copy, Init, Latch, SEQ, Poly, Freeze)
-    juce::Colour baseCol = (themeIdx == 1) ? juce::Colour (0xFFE2E0D8).darker (0.05f) : juce::Colour (0xFF181C22);
-    if (isToggled) {
-        juce::Colour activeAccent = (id == "dice_melody" || id == "dice_articulation" || id == "dice_time" || id == "dice_navy") ? t.rightAccent : t.leftAccent;
-        g.setColour (activeAccent.withAlpha (0.15f)); g.fillRoundedRectangle (bounds, 4.0f);
-        g.setColour (activeAccent); g.drawRoundedRectangle (bounds, 4.0f, 1.8f);
-    } else {
-        g.setColour (baseCol.darker (isDown ? 0.2f : (isOver ? 0.05f : 0.0f))); g.fillRoundedRectangle (bounds, 4.0f);
-        g.setColour (t.border); g.drawRoundedRectangle (bounds, 4.0f, 1.0f);
-    }
-}
-
-void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
-{
-    juce::ignoreUnused (shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
-    juce::String id = button.getComponentID();
-    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load()); auto t = AppTheme::get (themeIdx);
-    bool isToggled = button.getToggleState();
-
-    juce::Colour activeAccent = (id == "dice_melody" || id == "dice_articulation" || id == "dice_time" || id == "dice_navy" || button.getButtonText() == "B") ? t.rightAccent : t.leftAccent;
-
-    if (id == "dice_melody" || id == "dice_articulation" || id == "dice_time" || id == "dice_navy") {
-        auto bounds = button.getLocalBounds().toFloat();
-        float diceSize = 14.0f, diceX = 6.0f, diceY = (bounds.getHeight() - diceSize) * 0.5f;
-        auto diceBounds = juce::Rectangle<float> (diceX, diceY, diceSize, diceSize);
-        drawVectorDice (g, diceBounds, activeAccent);
-        auto textBounds = button.getLocalBounds().toFloat().withTrimmedLeft (24.0f);
-        g.setColour (isToggled ? activeAccent.brighter (0.1f) : (themeIdx == 1 ? juce::Colour(0xFF1E1E1E) : t.textDim.brighter(0.2f)));
-        g.setFont (getTextButtonFont (button, button.getHeight())); g.drawFittedText (button.getButtonText(), textBounds.toNearestInt(), juce::Justification::centredLeft, 1);
-    } else {
-        int presetIdx = button.getButtonText().getIntValue() - 1; bool isPreset = (presetIdx >= 0 && presetIdx < 8 && id.isEmpty());
-        juce::Colour textCol = isToggled ? activeAccent.brighter (0.1f) : (themeIdx == 1 ? juce::Colour (0xFF1E1E1E) : juce::Colour (0xFFCCCCCC));
-        if (isPreset) textCol = processor.isPresetSaved (presetIdx) ? t.leftAccent.brighter(0.2f) : (themeIdx == 1 ? juce::Colour (0xFF7A7870) : juce::Colour (0xFF55555C));
-        g.setColour (textCol); g.setFont (getTextButtonFont (button, button.getHeight())); g.drawFittedText (button.getButtonText(), button.getLocalBounds(), juce::Justification::centred, 1);
-    }
-}
-
-// ==============================================================================
-// PluginEditor Implementations
-// ==============================================================================
 PluginEditor::PluginEditor (PluginProcessor& p)
     : AudioProcessorEditor (&p), processor (p), oledDisplay (p), chromaLookAndFeel (p, this)
 {
-    addAndMakeVisible (oledDisplay); processor.apvts.addParameterListener ("panelTheme", this);
+    addAndMakeVisible (oledDisplay);
+    processor.apvts.addParameterListener ("panelTheme", this);
 
     juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     juce::Label* faderLabels[] = { &faderLabel1, &faderLabel2, &faderLabel3, &faderLabel4, &faderLabel5, &faderLabel6, &faderLabel7, &faderLabel8 };
@@ -183,7 +58,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     saveButton.onClick   = [this] { if (saveButton.getToggleState()) recallButton.setToggleState (false, juce::dontSendNotification); };
     recallButton.onClick = [this] { if (recallButton.getToggleState()) saveButton.setToggleState (false, juce::dontSendNotification); };
 
-    // Symmetrical Latching Modifiers directly in standard button callbacks
+    // Symmetrical Latching Modifiers directly inside button onClick lambdas
     addAndMakeVisible (diceMeloButton); diceMeloButton.setComponentID ("dice_melody"); diceMeloButton.setButtonText ("Melo"); diceMeloButton.setLookAndFeel (&chromaLookAndFeel); 
     diceMeloButton.onClick = [this] { if (initButton.getToggleState()) { processor.resetRhythm(); initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceMelody(); } };
     
@@ -252,4 +127,152 @@ PluginEditor::~PluginEditor()
 { 
     stopTimer(); processor.apvts.removeParameterListener ("panelTheme", this);
     juce::Slider* sliders[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob, &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8, &morphCrossfader };
-  
+    for (auto* s : sliders) s->setLookAndFeel (nullptr);
+    juce::TextButton* btns[] = { &diceMeloButton, &diceArtiButton, &diceTimeButton, &diceNavyButton, &latchButton, &arpSeqButton, &polyButton, &freezeButton, &sceneAButton, &sceneBButton, &saveButton, &recallButton, &copyButton, &initButton };
+    for (auto* b : btns) { b->setLookAndFeel (nullptr); b->onClick = nullptr; }
+    for (int i = 0; i < 8; ++i) { presetButtons[i].setLookAndFeel (nullptr); presetButtons[i].onClick = nullptr; presetButtons[i].onStateChange = nullptr; presetButtons[i].removeMouseListener(this); }
+    sceneAButton.removeMouseListener (this); sceneBButton.removeMouseListener (this);
+}
+
+void PluginEditor::parameterChanged (const juce::String& parameterID, float newValue)
+{
+    juce::ignoreUnused (newValue);
+    if (parameterID == "panelTheme") {
+        juce::MessageManager::callAsync ([this]() {
+            int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+            auto t = AppTheme::get (themeIdx);
+            juce::Slider* knobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+            for (auto* k : knobs) k->setColour (juce::Slider::textBoxTextColourId, t.textDim);
+
+            repaint(); oledDisplay.repaint();
+            fader1.repaint(); fader2.repaint(); fader3.repaint(); fader4.repaint(); fader5.repaint(); fader6.repaint(); fader7.repaint(); fader8.repaint();
+            rhythmMorphKnob.repaint(); restKnob.repaint(); legatoKnob.repaint(); rateKnob.repaint();
+            entropyKnob.repaint(); harmonyKnob.repaint(); chaosKnob.repaint(); octavesKnob.repaint();
+            morphCrossfader.repaint(); sceneAButton.repaint(); sceneBButton.repaint(); saveButton.repaint(); recallButton.repaint();
+        });
+    }
+}
+
+void PluginEditor::mouseDown (const juce::MouseEvent& event)
+{
+    for (int i = 0; i < 8; ++i) {
+        if (event.eventComponent == &presetButtons[i]) {
+            if (saveButton.getToggleState()) { presetPressStartTime[i] = juce::Time::getMillisecondCounter(); presetAlreadySaved[i] = false; }
+            else if (recallButton.getToggleState()) {
+                processor.loadPreset (i); presetFlashTimer[i] = 24; presetFlashType[i] = 2;
+                recallButton.setToggleState (false, juce::dontSendNotification); recallButton.repaint();
+            }
+            else if (event.mods.isRightButtonDown()) { processor.savePreset (i); presetFlashTimer[i] = 24; presetFlashType[i] = 1; }
+        }
+    }
+
+    if (event.eventComponent == &saveButton) { savePressStartTime = juce::Time::getMillisecondCounter(); saveAlreadySaved = false; }
+    else if (event.eventComponent == &recallButton) { recallPressStartTime = juce::Time::getMillisecondCounter(); recallAlreadySaved = false; }
+    else if (event.eventComponent == &copyButton) { copyPressStartTime = juce::Time::getMillisecondCounter(); copyAlreadySaved = false; }
+    else if (event.eventComponent == &initButton) { initPressStartTime = juce::Time::getMillisecondCounter(); initAlreadySaved = false; }
+    else if (event.eventComponent == &sceneAButton) { sceneAPressStartTime = juce::Time::getMillisecondCounter(); sceneAAlreadySaved = false; }
+    else if (event.eventComponent == &sceneBButton) { sceneBPressStartTime = juce::Time::getMillisecondCounter(); sceneBAlreadySaved = false; }
+}
+
+void PluginEditor::mouseUp (const juce::MouseEvent& event)
+{
+    for (int i = 0; i < 8; ++i) { if (event.eventComponent == &presetButtons[i]) { presetPressStartTime[i] = 0; presetAlreadySaved[i] = false; } }
+    if (event.eventComponent == &sceneAButton) { sceneAPressStartTime = 0; sceneAAlreadySaved = false; }
+    if (event.eventComponent == &sceneBButton) { sceneBPressStartTime = 0; sceneBAlreadySaved = false; }
+    if (event.eventComponent == &saveButton) { savePressStartTime = 0; saveAlreadySaved = false; }
+    if (event.eventComponent == &recallButton) { recallPressStartTime = 0; recallAlreadySaved = false; }
+    if (event.eventComponent == &copyButton) { copyPressStartTime = 0; copyAlreadySaved = false; }
+    if (event.eventComponent == &initButton) { initPressStartTime = 0; initAlreadySaved = false; }
+}
+
+void PluginEditor::paint (juce::Graphics& g)
+{
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load()); auto t = AppTheme::get (themeIdx);
+    g.fillAll (t.background); g.setColour (t.border); g.drawRect (getLocalBounds().toFloat(), 3.0f);
+    auto bounds = getLocalBounds().toFloat();
+    g.drawRoundedRectangle (10.0f, 10.0f, 170.0f, bounds.getHeight() - 210.0f, 4.0f, 1.5f);
+    g.drawRoundedRectangle (bounds.getWidth() - 180.0f, 10.0f, 170.0f, bounds.getHeight() - 210.0f, 4.0f, 1.5f);
+    g.drawRoundedRectangle (10.0f, bounds.getHeight() - 190.0f, bounds.getWidth() - 20.0f, 180.0f, 4.0f, 1.5f);
+    g.setColour (t.textDim); g.setFont (juce::Font (juce::FontOptions (14.0f).withStyle ("Bold")));
+    g.drawText ("Rhythm", 20, 15, 150, 20, juce::Justification::left); g.drawText ("Generator", getWidth() - 170, 15, 150, 20, juce::Justification::right);
+}
+
+void PluginEditor::resized()
+{
+    int bottomY = getHeight() - 180, centerWidth = getWidth() - 370, centerStartX = 185;
+    juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
+    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
+    juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
+    
+    int rightX = getWidth() - 180, knobsAvailableHeight = bottomY - 120, knobHeight = juce::jlimit (50, 100, knobsAvailableHeight / 4), knobStartY = 38;
+    for (int i = 0; i < 4; ++i) {
+        int knobY = knobStartY + i * knobHeight;
+        leftKnobs[i]->setBounds (15, knobY + 12, 150, knobHeight - 16); leftTitles[i]->setBounds (15, knobY, 150, 14);
+        rightKnobs[i]->setBounds (rightX + 5, knobY + 12, 150, knobHeight - 16); rightTitles[i]->setBounds (rightX + 5, knobY, 150, 14);
+    }
+
+    int gridY = bottomY - 100;
+    saveButton.setBounds (15, gridY, 72, 36); recallButton.setBounds (93, gridY, 72, 36); copyButton.setBounds (15, gridY + 42, 72, 36); initButton.setBounds (93, gridY + 42, 72, 36);
+    int diceStartX = getWidth() - 165;
+    diceMeloButton.setBounds (diceStartX, gridY, 72, 36); diceArtiButton.setBounds (diceStartX + 78, gridY, 72, 36); diceTimeButton.setBounds (diceStartX, gridY + 42, 72, 36); diceNavyButton.setBounds (diceStartX + 78, gridY + 42, 72, 36);
+
+    int dropWidth = static_cast<int> ((centerWidth * 0.45f) / 3), perfWidth = static_cast<int> ((centerWidth * 0.55f) / 4);
+    rootKeyBox.setBounds (centerStartX, 15, dropWidth - 5, 24); scaleTypeBox.setBounds (centerStartX + dropWidth, 15, dropWidth - 5, 24); cycleLengthBox.setBounds (centerStartX + dropWidth * 2, 15, dropWidth - 5, 24);
+    int perfStartX = centerStartX + dropWidth * 3 + 10;
+    latchButton.setBounds (perfStartX, 15, perfWidth - 5, 24); arpSeqButton.setBounds (perfStartX + perfWidth, 15, perfWidth - 5, 24); polyButton.setBounds (perfStartX + perfWidth * 2, 15, perfWidth - 5, 24); freezeButton.setBounds (perfStartX + perfWidth * 3, 15, perfWidth - 5, 24);
+
+    int oledY = 50, presetsY = static_cast<int> (gridY + 6), crossfaderY = static_cast<int> (gridY + 48), oledHeight = presetsY - oledY - 10;
+    oledDisplay.setBounds (centerStartX, oledY, centerWidth, oledHeight);
+
+    int presetBtnW = (centerWidth - 35) / 8;
+    for (int i = 0; i < 8; ++i) presetButtons[i].setBounds (centerStartX + i * (presetBtnW + 5), presetsY, presetBtnW, 24);
+
+    sceneAButton.setBounds (centerStartX, crossfaderY, 40, 24); morphCrossfader.setBounds (centerStartX + 45, crossfaderY, centerWidth - 90, 24); sceneBButton.setBounds (centerStartX + centerWidth - 40, crossfaderY, 40, 24);
+
+    int faderWidth = (getWidth() - 40) / 8;
+    juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
+    juce::Label* faderLabels[] = { &faderLabel1, &faderLabel2, &faderLabel3, &faderLabel4, &faderLabel5, &faderLabel6, &faderLabel7, &faderLabel8 };
+    for (int i = 0; i < 8; ++i) {
+        int faderX = 20 + i * faderWidth; faders[i]->setBounds (faderX + 10, bottomY + 10, faderWidth - 20, 130); faderLabels[i]->setBounds (faderX, bottomY + 145, faderWidth, 20);
+    }
+}
+
+void PluginEditor::timerCallback()
+{
+    uint32_t now = juce::Time::getMillisecondCounter();
+    bool isArp = *processor.apvts.getRawParameterValue (IDs::arpSeq.getParamID()) > 0.5f; arpSeqButton.setButtonText (isArp ? "Arp" : "Seq");
+
+    static bool lastAnchorB = false; bool currentAnchorB = processor.isSceneBActiveAnchor.load();
+    if (currentAnchorB != lastAnchorB) { lastAnchorB = currentAnchorB; sceneAButton.repaint(); sceneBButton.repaint(); }
+
+    if (sceneAFlashTimer > 0) { sceneAFlashTimer--; if (sceneAFlashTimer == 0) sceneAButton.repaint(); }
+    if (sceneBFlashTimer > 0) { sceneBFlashTimer--; if (sceneBFlashTimer == 0) sceneBButton.repaint(); }
+    if (saveFlashTimer > 0) { saveFlashTimer--; if (saveFlashTimer == 0) saveButton.repaint(); }
+    if (recallFlashTimer > 0) { recallFlashTimer--; if (recallFlashTimer == 0) recallButton.repaint(); }
+    if (copyFlashTimer > 0) { copyFlashTimer--; if (copyFlashTimer == 0) copyButton.repaint(); }
+    if (initFlashTimer > 0) { initFlashTimer--; if (initFlashTimer == 0) initButton.repaint(); }
+
+    for (int i = 0; i < 8; ++i) {
+        if (presetButtons[i].isMouseButtonDown() && presetPressStartTime[i] != 0 && !presetAlreadySaved[i]) {
+            if (now - presetPressStartTime[i] >= 1000) {
+                processor.savePreset (i); presetAlreadySaved[i] = true; presetFlashTimer[i] = 24; presetFlashType[i] = 1;
+                if (saveButton.getToggleState()) { saveButton.setToggleState (false, juce::dontSendNotification); saveButton.repaint(); }
+            }
+        }
+        if (presetFlashTimer[i] > 0) { presetFlashTimer[i]--; if (presetFlashTimer[i] == 0) presetButtons[i].repaint(); }
+    }
+
+    if (sceneAButton.isMouseButtonDown() && sceneAPressStartTime != 0 && !sceneAAlreadySaved) { if (now - sceneAPressStartTime >= 1000) { processor.setActiveAnchor (false); sceneAAlreadySaved = true; sceneAFlashTimer = 24; } }
+    if (sceneBButton.isMouseButtonDown() && sceneBPressStartTime != 0 && !sceneBAlreadySaved) { if (now - sceneBPressStartTime >= 1000) { processor.setActiveAnchor (true); sceneBAlreadySaved = true; sceneBFlashTimer = 24; } }
+
+    if (saveButton.isMouseButtonDown() && savePressStartTime != 0 && !saveAlreadySaved) { if (now - savePressStartTime >= 1000) { processor.savePreset (processor.activePresetIndex.load()); saveAlreadySaved = true; saveFlashTimer = 24; saveButton.setToggleState (false, juce::dontSendNotification); saveButton.repaint(); } }
+    if (recallButton.isMouseButtonDown() && recallPressStartTime != 0 && !recallAlreadySaved) { if (now - recallPressStartTime >= 1000) { processor.loadPreset (processor.activePresetIndex.load()); recallAlreadySaved = true; recallFlashTimer = 24; recallButton.setToggleState (false, juce::dontSendNotification); recallButton.repaint(); } }
+    if (copyButton.isMouseButtonDown() && copyPressStartTime != 0 && !copyAlreadySaved) { if (now - copyPressStartTime >= 1000) { processor.sceneB = processor.sceneA; processor.hasSceneB = processor.hasSceneA; copyAlreadySaved = true; copyFlashTimer = 24; copyButton.setToggleState (false, juce::dontSendNotification); copyButton.repaint(); } }
+    if (initButton.isMouseButtonDown() && initPressStartTime != 0 && !initAlreadySaved) {
+        if (now - initPressStartTime >= 1000) {
+            for (auto* param : processor.getParameters()) { if (param != nullptr) param->setValueNotifyingHost (param->getDefaultValue()); }
+            initAlreadySaved = true; initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint();
+        }
+    }
+}
