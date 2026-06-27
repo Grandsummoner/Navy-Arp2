@@ -226,3 +226,20 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         g.setColour (textCol); g.setFont (getTextButtonFont (button, button.getHeight())); g.drawFittedText (button.getButtonText(), button.getLocalBounds(), juce::Justification::centred, 1);
     }
 }
+
+// Definition of private helper method to resolve link errors
+void ChromaCapsLookAndFeel::drawVectorDice (juce::Graphics& g, juce::Rectangle<float> bounds, juce::Colour pipColour)
+{
+    auto diceFace = bounds.reduced (1.0f);
+    g.setColour (pipColour.withAlpha (0.12f)); g.fillRoundedRectangle (diceFace, 2.0f);
+    g.setColour (pipColour); g.drawRoundedRectangle (diceFace, 2.0f, 1.2f);
+    
+    float cx = diceFace.getCentreX(), cy = diceFace.getCentreY();
+    float d = diceFace.getWidth() * 0.25f, r = 1.3f;
+    
+    g.fillEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f);
+    g.fillEllipse (cx - d - r, cy - d - r, r * 2.0f, r * 2.0f);
+    g.fillEllipse (cx + d - r, cy - d - r, r * 2.0f, r * 2.0f);
+    g.fillEllipse (cx - d - r, cy + d - r, r * 2.0f, r * 2.0f);
+    g.fillEllipse (cx + d - r, cy + d - r, r * 2.0f, r * 2.0f);
+}
