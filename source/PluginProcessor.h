@@ -42,7 +42,7 @@ struct SceneState {
     float chaos = 0.0f;
     float octaves = 0.0f; // Default 0 (no octave shift)
 
-    // Full 16-channel LFO parameter states [5]
+    // Full 16-channel LFO parameter states
     int lfoRates[8] = { 0 };
     float lfoDepths[8] = { 0.0f };
 };
@@ -76,7 +76,7 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Symmetrical Scene Management (Direct to Scene A or B)
+    // Symmetrical Scene Management
     void saveSceneA() { captureScene (0); }
     void saveSceneB() { captureScene (1); }
     void clearSceneA() { hasSceneA = false; }
@@ -86,7 +86,11 @@ public:
     void loadPreset (int slotIndex);
     bool isPresetSaved (int slotIndex) const { return presetSlotsSaved[slotIndex]; }
 
-    // Unified Project-Based Scene Arrays (Presets 1-8 save/restore both Scene A & B) [NEW]
+    // Active Anchor Parameter Management Method Declarations
+    void setActiveAnchor (bool useSceneB);
+    void captureActiveParametersToActiveScene();
+
+    // Unified Project-Based Scene Arrays
     SceneState sceneAPresets[8];
     SceneState sceneBPresets[8];
     bool sceneASlotsSaved[8] = { false };
@@ -97,10 +101,10 @@ public:
     bool hasSceneA = false;
     bool hasSceneB = false;
 
-    std::atomic<int> activePresetIndex { 0 }; // Keeps track of currently selected preset slot
-    std::atomic<bool> isSceneBActiveAnchor { false }; // Active editing/loading target [NEW]
+    std::atomic<int> activePresetIndex { 0 }; 
+    std::atomic<bool> isSceneBActiveAnchor { false }; 
 
-    // Generative triggers (No LFO randomization, strictly protected!) [NEW]
+    // Generative triggers
     void diceMelody();
     void diceArticulation();
     void diceTime();
@@ -172,9 +176,11 @@ private:
     SceneState presets[8];
     bool presetSlotsSaved[8] = { false };
 
-    // Slew smoothing arrays for pop-free transitions
+    // Slew smoothing arrays for transitions
     float currentSlewTarget[24] = { 0.0f };
     float currentSlewValue[24] = { 0.0f };
+
+    bool lastSceneBActiveState = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };

@@ -27,8 +27,8 @@ struct AppTheme
         {
             t.background    = juce::Colour (0xFFE2E0D8);
             t.border        = juce::Colour (0xFFB8B5AB);
-            t.leftAccent    = juce::Colour (0xFFFF3B30);
-            t.rightAccent   = juce::Colour (0xFF3A3A38);
+            t.leftAccent    = juce::Colour (0xFFFF3B30); // Eurorack Red Accent
+            t.rightAccent   = juce::Colour (0xFF3A3A38); // Matte Charcoal
             t.textDim       = juce::Colour (0xFF1A1A18);
             t.trackBg       = juce::Colour (0xFFD4D1C9);
             t.slotOutline   = juce::Colour (0xFFA8A59C);
@@ -87,7 +87,6 @@ public:
                            float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
                            juce::Slider& slider) override
     {
-        // Resolved double-assignment typo on "bounds"
         auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
         auto knobBounds = bounds.reduced (16.0f);
         auto radius = juce::jmin (knobBounds.getWidth(), knobBounds.getHeight()) / 2.0f;
