@@ -471,36 +471,42 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
                 depthMenu.addItem (21, "Slight (10%)", true, (currentDepth > 0.05f && currentDepth <= 0.15f));
                 depthMenu.addItem (22, "Medium (25%)", true, (currentDepth > 0.2f && currentDepth <= 0.3f));
                 depthMenu.addItem (23, "Heavy (50%)", true, (currentDepth > 0.45f && currentDepth <= 0.55f));
-                depthMenu.addItem (24, "Full (100%)", true, (currentDepth > 0.95f));
+                depthMenu.addItem (24, "Full (100%)", true, (static_cast<double> (currentDepth) > 0.95));
                 menu.addSubMenu ("LFO Depth / Range", depthMenu);
                 
-                int result = menu.showAt (clickedSlider);
-                if (result == 1) // Disable LFO
-                {
-                    rateParam->setValueNotifyingHost (0.0f);
-                    depthParam->setValueNotifyingHost (0.0f);
-                }
-                else if (result >= 10 && result <= 13) // Speed Choices
-                {
-                    float rateVal = static_cast<float> (result - 9) / 4.0f;
-                    rateParam->setValueNotifyingHost (rateVal);
-                    if (depthParam->getValue() == 0.0f) {
-                        depthParam->setValueNotifyingHost (0.25f); // Default to 25% depth
-                    }
-                }
-                else if (result >= 20 && result <= 24) // Depth Choices
-                {
-                    float depthVal = 0.0f;
-                    if (result == 21)      depthVal = 0.1f;
-                    else if (result == 22) depthVal = 0.25f;
-                    else if (result == 23) depthVal = 0.5f;
-                    else if (result == 24) depthVal = 1.0f;
-                    depthParam->setValueNotifyingHost (depthVal);
-                    
-                    if (rateParam->getValue() == 0.0f) {
-                        rateParam->setValueNotifyingHost (0.5f); // Default speed
-                    }
-                }
+                juce::RangedAudioParameter* safeRateParam = rateParam;
+                juce::RangedAudioParameter* safeDepthParam = depthParam;
+                
+                menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (clickedSlider),
+                                    [this, safeRateParam, safeDepthParam](int result)
+                                    {
+                                        if (result == 1) // Disable LFO
+                                        {
+                                            safeRateParam->setValueNotifyingHost (0.0f);
+                                            safeDepthParam->setValueNotifyingHost (0.0f);
+                                        }
+                                        else if (result >= 10 && result <= 13) // Speed Choices
+                                        {
+                                            float rateVal = static_cast<float> (result - 9) / 4.0f;
+                                            safeRateParam->setValueNotifyingHost (rateVal);
+                                            if (safeDepthParam->getValue() == 0.0f) {
+                                                safeDepthParam->setValueNotifyingHost (0.25f); // Default to 25% depth
+                                            }
+                                        }
+                                        else if (result >= 20 && result <= 24) // Depth Choices
+                                        {
+                                            float depthVal = 0.0f;
+                                            if (result == 21)      depthVal = 0.1f;
+                                            else if (result == 22) depthVal = 0.25f;
+                                            else if (result == 23) depthVal = 0.5f;
+                                            else if (result == 24) depthVal = 1.0f;
+                                            safeDepthParam->setValueNotifyingHost (depthVal);
+                                            
+                                            if (safeRateParam->getValue() == 0.0f) {
+                                                safeRateParam->setValueNotifyingHost (0.5f); // Default speed
+                                            }
+                                        }
+                                    });
             }
         }
     }
@@ -552,7 +558,6 @@ void PluginEditor::paint (juce::Graphics& g)
 
 void PluginEditor::resized()
 {
-    auto area = getLocalBounds();
     int bottomY = getHeight() - 180;
     int leftPanelHeight = getHeight() - 210;
 
@@ -748,9 +753,11 @@ void PluginEditor::timerCallback()
     {
         if (now - initPressStartTime >= 1000)
         {
-            auto& apvts = processor.apvts;
-            for (auto& param : apvts.getProcessor().getParameters())
-                param->setValueNotifyingHost (param->getDefaultValue());
+            for (auto* param : processor.getParameters())
+            {
+                if (param != nullptr)
+                    param->setValueNotifyingHost (param->getDefaultValue());
+            }
             initAlreadySaved = true;
             initFlashTimer = 24;
             initButton.setToggleState (false, juce::dontSendNotification);
