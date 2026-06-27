@@ -93,7 +93,7 @@ jobs:
     needs: build_and_test
     steps:
       - name: Get Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
