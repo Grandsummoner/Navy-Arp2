@@ -30,12 +30,15 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "vst3"; Description: "Install VST3 Plugin (64-bit)"; GroupDescription: "Plugin Formats:"
 Name: "standalone"; Description: "Install Standalone Application (64-bit)"; GroupDescription: "Plugin Formats:"
+Name: "clap"; Description: "Install CLAP Plugin (64-bit)"; GroupDescription: "Plugin Formats:"
 
 [Files]
-; Standalone Executable (Reads from the root Artifacts directory)
+; Standalone Executable
 Source: "..\Artifacts\Standalone\Navy Arp.exe"; DestDir: "{app}"; Flags: ignoreversion; Tasks: standalone
-; VST3 Plugin Folder and its contents (Recursive copy from root Artifacts directory)
-Source: "..\Artifacts\VST3\*"; DestDir: "{commoncf64}\VST3\Navy Arp.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: vst3
+; VST3 Plugin Folder (Copies the parent Navy Arp.vst3 folder directly into C:\Program Files\Common Files\VST3)
+Source: "..\Artifacts\VST3\*"; DestDir: "{commoncf64}\VST3"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: vst3
+; CLAP Plugin Binary (Copies the raw binary directly into C:\Program Files\Common Files\CLAP)
+Source: "..\Artifacts\CLAP\Navy Arp.clap"; DestDir: "{commoncf64}\CLAP"; Flags: ignoreversion; Tasks: clap
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: standalone
