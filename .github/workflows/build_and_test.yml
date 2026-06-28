@@ -34,13 +34,14 @@ jobs:
       - name: Build Plugin & Standalone
         run: cmake --build Builds --config ${{ env.BUILD_TYPE }} --parallel
 
-      # Gather raw compiled binaries into a standardized folder structure
+      # Gather raw compiled Standalone, VST3, and CLAP binaries into the Artifacts folder
       - name: Locate Built Artifacts
         shell: bash
         run: |
-          mkdir -p Artifacts/VST3 Artifacts/Standalone
+          mkdir -p Artifacts/VST3 Artifacts/Standalone Artifacts/CLAP
           cp -R "Builds/NavyArp_artefacts/${{ env.BUILD_TYPE }}/VST3/Navy Arp.vst3" Artifacts/VST3/
           cp "Builds/NavyArp_artefacts/${{ env.BUILD_TYPE }}/Standalone/Navy Arp.exe" Artifacts/Standalone/
+          cp "Builds/NavyArp_artefacts/${{ env.BUILD_TYPE }}/CLAP/Navy Arp.clap" Artifacts/CLAP/
 
       # Run Inno Setup compiler (ISCC) to bundle the Artifacts/ folder into an installer
       - name: Build Windows Setup Installer
