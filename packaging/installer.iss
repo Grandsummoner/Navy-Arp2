@@ -16,7 +16,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={commonpf64}\{#MyAppPublisher}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-OutputDir=Artifacts
+OutputDir=..\Artifacts
 OutputBaseFilename=Navy_Arp_Installer
 Compression=lzma2/max
 SolidCompression=yes
@@ -32,10 +32,10 @@ Name: "vst3"; Description: "Install VST3 Plugin (64-bit)"; GroupDescription: "Pl
 Name: "standalone"; Description: "Install Standalone Application (64-bit)"; GroupDescription: "Plugin Formats:"
 
 [Files]
-; Standalone Executable
-Source: "Artifacts\Standalone\Navy Arp.exe"; DestDir: "{app}"; Flags: ignoreversion; Tasks: standalone
-; VST3 Plugin Folder and its contents (Recursive copy)
-Source: "Artifacts\VST3\*"; DestDir: "{commoncf64}\VST3\Navy Arp.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: vst3
+; Standalone Executable (Reads from the root Artifacts directory)
+Source: "..\Artifacts\Standalone\Navy Arp.exe"; DestDir: "{app}"; Flags: ignoreversion; Tasks: standalone
+; VST3 Plugin Folder and its contents (Recursive copy from root Artifacts directory)
+Source: "..\Artifacts\VST3\*"; DestDir: "{commoncf64}\VST3\Navy Arp.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: vst3
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: standalone
