@@ -8,60 +8,24 @@
 #include "ChromaCapsLookAndFeel.h"
 #include "OledDisplay.h"
 
-class PluginEditor;
-
-class ChromaCapsLookAndFeel : public juce::LookAndFeel_V4
-{
-public:
-    ChromaCapsLookAndFeel (PluginProcessor& p, PluginEditor* e = nullptr);
-
-    void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height, 
-                           float sliderPos, const float rotaryStartAngle, const float rotaryEndAngle, 
-                           juce::Slider& slider) override;
-
-    void drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
-                           float sliderPos, float minSliderPos, float maxSliderPos,
-                           const juce::Slider::SliderStyle style, juce::Slider& slider) override;
-
-    void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
-                                bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
-    void drawButtonText (juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
-private:
-    void drawVectorDice (juce::Graphics& g, juce::Rectangle<float> bounds, juce::Colour pipColour);
-
-    PluginProcessor& processor;
-    PluginEditor* editor;
-};
-
-class OledDisplay : public juce::Component, public juce::Timer
-{
-public:
-    OledDisplay (PluginProcessor& p);
-    ~OledDisplay() override;
-
-    void timerCallback() override;
-    void paint (juce::Graphics& g) override;
-
-private:
-    PluginProcessor& processor;
-    int lastLfoRates[8] = { 0 }; float lastLfoDepths[8] = { 0.0f };
-    int lfoOverlayTimer = 0, lfoActiveParamIdx = -1;
-};
-
-class PluginEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::AudioProcessorValueTreeState::Listener 
+class PluginEditor : public juce::AudioProcessorEditor, 
+                     public juce::Timer,
+                     public juce::AudioProcessorValueTreeState::Listener 
 {
 public:
     PluginEditor (PluginProcessor&);
     ~PluginEditor() override;
+
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+
     void mouseDown (const juce::MouseEvent& event) override;
     void mouseUp (const juce::MouseEvent& event) override;
+
     void parameterChanged (const juce::String& parameterID, float newValue) override;
 
+    // Grant look and feel engine direct access to private animation timers
     friend class ChromaCapsLookAndFeel;
 
 private:

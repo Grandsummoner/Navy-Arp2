@@ -58,6 +58,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     saveButton.onClick   = [this] { if (saveButton.getToggleState()) recallButton.setToggleState (false, juce::dontSendNotification); };
     recallButton.onClick = [this] { if (recallButton.getToggleState()) saveButton.setToggleState (false, juce::dontSendNotification); };
 
+    // Symmetrical Latching Modifiers directly inside button onClick lambdas
     addAndMakeVisible (diceMeloButton); diceMeloButton.setComponentID ("dice_melody"); diceMeloButton.setButtonText ("Melo"); diceMeloButton.setLookAndFeel (&chromaLookAndFeel); 
     diceMeloButton.onClick = [this] { if (initButton.getToggleState()) { processor.resetRhythm(); initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceMelody(); } };
     

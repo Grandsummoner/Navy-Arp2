@@ -24,9 +24,6 @@ public:
 
     void drawButtonText (juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
 
-    // Custom Textbox styling override for the floating readouts
-    void drawTextBox (juce::Graphics& g, juce::Slider& slider, int x, int y, int width, int height) override;
-
 private:
     void drawVectorDice (juce::Graphics& g, juce::Rectangle<float> bounds, juce::Colour pipColour);
 
