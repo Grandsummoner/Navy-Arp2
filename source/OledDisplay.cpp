@@ -4,9 +4,6 @@
 OledDisplay::OledDisplay (PluginProcessor& p)
     : processor (p)
 {
-    // Initialize VU meters to low idle states
-    leftVuLevel = 0.0f;
-    rightVuLevel = 0.0f;
 }
 
 OledDisplay::~OledDisplay()
@@ -97,7 +94,7 @@ void OledDisplay::paint (juce::Graphics& g)
         g.setColour (juce::Colours::grey);
         g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         
-        auto stepArea = displayArea.removeFromTop (20.0f);
+        auto stepArea = displayArea.removeFromTop (24.0f);
         const float totalSpacing = 4.0f;
         const float stepWidth = (stepArea.getWidth() - (7.0f * totalSpacing)) / 8.0f;
         const int activeStep = processor.currentStep; // Fetches the actual running playhead step
@@ -124,53 +121,18 @@ void OledDisplay::paint (juce::Graphics& g)
                 g.setColour (juce::Colours::grey);
             }
 
-            g.setFont (juce::FontOptions (9.0f, juce::Font::plain));
+            g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
             g.drawText (juce::String (i + 1), cell, juce::Justification::centred, true);
             stepArea.removeFromLeft (totalSpacing); // Advance column spacing
         }
 
-        displayArea.removeFromTop (8.0f);
+        displayArea.removeFromTop (14.0f);
 
         // =====================================================================
-        // RENDER: REAL-TIME INERTIAL VU LEVEL METERS
-        // =====================================================================
-        float vuBarHeight = 5.0f;
-        auto leftVuArea = displayArea.removeFromTop (vuBarHeight);
-        displayArea.removeFromTop (3.0f);
-        auto rightVuArea = displayArea.removeFromTop (vuBarHeight);
-
-        // Apply visual decay and fluctuations if playing, smoothly drop to 0 if stopped
-        if (isPlaying)
-        {
-            leftVuLevel = juce::jlimit (0.1f, 0.99f, leftVuLevel + juce::Random::getSystemRandom().nextFloat() * 0.2f - 0.1f);
-            rightVuLevel = juce::jlimit (0.1f, 0.99f, rightVuLevel + juce::Random::getSystemRandom().nextFloat() * 0.2f - 0.1f);
-        }
-        else
-        {
-            // Smoothly drop meters to 0 when playback stops
-            leftVuLevel = juce::jlimit (0.0f, 1.0f, leftVuLevel - 0.08f);
-            rightVuLevel = juce::jlimit (0.0f, 1.0f, rightVuLevel - 0.08f);
-        }
-
-        // Draw left VU channel
-        g.setColour (juce::Colour (0xFF181C24));
-        g.fillRoundedRectangle (leftVuArea, 1.5f);
-        g.setColour (isFreezeActive ? juce::Colour (0xFF80D8FF) : juce::Colour (0xFF4CAF50));
-        g.fillRoundedRectangle (leftVuArea.withWidth (leftVuArea.getWidth() * leftVuLevel), 1.5f);
-
-        // Draw right VU channel
-        g.setColour (juce::Colour (0xFF181C24));
-        g.fillRoundedRectangle (rightVuArea, 1.5f);
-        g.setColour (isFreezeActive ? juce::Colour (0xFF80D8FF) : juce::Colour (0xFF4CAF50));
-        g.fillRoundedRectangle (rightVuArea.withWidth (rightVuArea.getWidth() * rightVuLevel), 1.5f);
-
-        displayArea.removeFromTop (6.0f);
-
-        // =====================================================================
-        // RENDER: PLAYBACK METADATA & CYCLES
+        // RENDER: PLAYBACK METADATA & CYCLES (VU METERS OMITTED)
         // =====================================================================
         g.setColour (juce::Colours::grey);
-        g.setFont (juce::FontOptions (8.5f, juce::Font::plain));
+        g.setFont (juce::FontOptions (10.0f, juce::Font::plain));
 
         juce::String statusText = isPlaying ? "STATE: ACTIVE" : "STATE: STOPPED";
         if (isFreezeActive) statusText = "STATE: FROZEN";

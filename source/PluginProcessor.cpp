@@ -131,6 +131,11 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     if (auto* playhead = getPlayHead()) { juce::AudioPlayHead::CurrentPositionInfo info; if (playhead->getCurrentPositionInfo (info)) { isPlaying = info.isPlaying; bpm = info.bpm; mSongPositionPPQ = info.ppqPosition; } }
 #endif
     int numSamples = buffer.getNumSamples(); updateLfoModulations (numSamples, bpm);
+
+    // Dynamic Slew Meter Decays
+    for (int i = 0; i < 8; ++i)
+        currentSlewTarget[i] = std::max (0.0f, currentSlewTarget[i] - 0.00045f * numSamples);
+
     float slewFactor = static_cast<float>(1.0 - std::exp (-1.0 / (0.15 * mSampleRate)));
     for (int i = 0; i < 24; ++i) currentSlewValue[i] += (currentSlewTarget[i] - currentSlewValue[i]) * slewFactor;
 
@@ -239,6 +244,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             }
             mLastStep = currentStep;
 
+            // Drive Signal to Fader UI Level Meters on clock triggering
+            for (int i = 0; i < 8; ++i)
+                currentSlewTarget[i] = 0.0f;
+
             float faderProb = isFreezeActive ? frozenFaders[currentStep] : morphedFaders[currentStep];
             float currentRest = isFreezeActive ? frozenRest : modRest;
             if (juce::Random::getSystemRandom().nextFloat() <= faderProb && !(juce::Random::getSystemRandom().nextFloat() <= currentRest)) {
@@ -282,9 +291,26 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                     processedMidi.addEvent (juce::MidiMessage::noteOn (1, targetPitch, static_cast<juce::uint8>(100)), 0);
                     mLastNotePlayed = targetPitch; mNoteOffTime = static_cast<int>(stepSamples * currentLegato); scheduleNoteOff (processedMidi, targetPitch, mNoteOffTime);
                 }
+
+                currentSlewTarget[currentStep] = 1.0f; // Spike active playing fader meter
+            }
+            else
+            {
+                currentSlewTarget[currentStep] = 0.22f; // Dim playhead track highlight on rest step
             }
         }
-    } else { if (mLastStep != -1) { if (mLastNotePlayed != -1) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; } mLastStep = -1; } currentStep = 0; }
+    } else { 
+        if (mLastStep != -1) { 
+            if (mLastNotePlayed != -1) { 
+                processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); 
+                mLastNotePlayed = -1; 
+            } 
+            mLastStep = -1; 
+        } 
+        currentStep = 0; 
+        for (int i = 0; i < 8; ++i)
+            currentSlewTarget[i] = 0.0f; // Instantly zero out level tracks on playhead stop
+    }
     midiMessages.swapWith (processedMidi);
 }
 
@@ -527,5 +553,3 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
 
     return { params.begin(), params.end() };
 }
-
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new PluginProcessor(); }

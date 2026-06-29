@@ -30,6 +30,11 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         else
             g.setColour (juce::Colours::white.withAlpha (0.7f));
     }
+    else if (button.getClickingTogglesState() && button.getToggleState())
+    {
+        // High contrast bold black text on active glowing toggle buttons
+        g.setColour (juce::Colours::black);
+    }
     else
     {
         g.setColour (button.findColour (juce::TextButton::textColourOffId).withMultipliedAlpha (button.isEnabled() ? 1.0f : 0.5f));
@@ -58,13 +63,17 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         const bool isActiveAnchor = (isButtonA && !isSceneB) || (isButtonB && isSceneB);
 
         if (isActiveAnchor)
-        {
             baseColour = juce::Colour (0xFF00D2FF); // Active anchor highlighted in Cyan
-        }
         else
-        {
             baseColour = juce::Colour (0xFF2A2D36); // Inactive dark background
-        }
+    }
+    else if (button.getClickingTogglesState())
+    {
+        // Handles Latch, Seq, Poly, and Freeze toggle states
+        if (button.getToggleState())
+            baseColour = juce::Colour (0xFF00D2FF); // High contrast Cyan on active toggle state
+        else
+            baseColour = juce::Colour (0xFF2D313A); // Dark charcoal on inactive state
     }
 
     if (shouldDrawButtonAsDown)
@@ -98,16 +107,38 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         const float trackWidth = 6.0f;
         const float trackX = static_cast<float>(x) + (static_cast<float>(width) - trackWidth) * 0.5f;
         
+        // Base track background slot
         g.setColour (juce::Colours::black.withAlpha (0.4f));
         g.fillRoundedRectangle (trackX, static_cast<float>(y), trackWidth, static_cast<float>(height), 3.0f);
+
+        // Real-Time per-fader level meters rendering
+        if (slider.getComponentID().startsWith ("fader"))
+        {
+            // Parse out fader index from ComponentID (e.g. fader1 -> 0, fader2 -> 1)
+            int faderIndex = slider.getComponentID().getLastCharacters (1).getIntValue() - 1;
+            if (faderIndex >= 0 && faderIndex < 8)
+            {
+                float level = processor.currentSlewValue[faderIndex];
+                if (level > 0.01f)
+                {
+                    // Draw a glowing level meter indicator rising from the bottom of the slot track
+                    float levelHeight = static_cast<float> (height) * level;
+                    float levelY = static_cast<float> (y) + static_cast<float> (height) - levelHeight;
+                    
+                    g.setColour (juce::Colour (0xFF00D2FF).withAlpha (level)); // Cyan fader meter glow
+                    g.fillRoundedRectangle (trackX, levelY, trackWidth, levelHeight, 3.0f);
+                }
+            }
+        }
         
+        // Inner 3D bevel highlighting
         g.setColour (juce::Colours::black.withAlpha (0.6f));
         g.drawVerticalLine (static_cast<int>(trackX), static_cast<float>(y), static_cast<float>(y + height));
         
         g.setColour (juce::Colours::white.withAlpha (0.1f));
         g.drawVerticalLine (static_cast<int>(trackX + trackWidth), static_cast<float>(y), static_cast<float>(y + height));
 
-        // Draw fader cap handle
+        // Draw fader cap handle thumb
         const float thumbHeight = 16.0f;
         const float thumbWidth = 24.0f;
         const float thumbX = static_cast<float>(x) + (static_cast<float>(width) - thumbWidth) * 0.5f;

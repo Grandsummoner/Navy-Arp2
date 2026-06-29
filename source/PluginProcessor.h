@@ -112,7 +112,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     //==============================================================================
-    // Generative Engine & Preset Utilities (PUBLIC for Editor / Display Access)
+    // Generative Engine & Preset Utilities
     //==============================================================================
     void scheduleNoteOff (juce::MidiBuffer& midi, int pitch, int delaySamples);
     void setActiveAnchor (bool useSceneB);
@@ -124,11 +124,25 @@ public:
     void loadPreset (int slotIndex);
     void captureScene (int side);
 
-    // Reconstructed Inline Helpers accessed by PluginEditor
+    // Reconstructed Inline Helpers (Updated to clear UI sliders visually)
     void clearSceneA()
     {
         sceneA = SceneState();
         hasSceneA = false;
+        
+        if (!isSceneBActive())
+        {
+            apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost (sceneA.rhythmMorph);
+            apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost (sceneA.rest);
+            apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost (sceneA.legato);
+            apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost ((sceneA.entropy + 1.0f) * 0.5f);
+            apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost (sceneA.harmony);
+            apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost (sceneA.chaos);
+            apvts.getParameter (IDs::rate.getParamID())->setValueNotifyingHost (sceneA.rate / 3.0f);
+            apvts.getParameter (IDs::octaves.getParamID())->setValueNotifyingHost ((sceneA.octaves + 3.0f) / 6.0f);
+            for (int i = 0; i < 8; ++i)
+                apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (sceneA.faders[i]);
+        }
     }
 
     void saveSceneA()
@@ -140,6 +154,20 @@ public:
     {
         sceneB = SceneState();
         hasSceneB = false;
+        
+        if (isSceneBActive())
+        {
+            apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost (sceneB.rhythmMorph);
+            apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost (sceneB.rest);
+            apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost (sceneB.legato);
+            apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost ((sceneB.entropy + 1.0f) * 0.5f);
+            apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost (sceneB.harmony);
+            apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost (sceneB.chaos);
+            apvts.getParameter (IDs::rate.getParamID())->setValueNotifyingHost (sceneB.rate / 3.0f);
+            apvts.getParameter (IDs::octaves.getParamID())->setValueNotifyingHost ((sceneB.octaves + 3.0f) / 6.0f);
+            for (int i = 0; i < 8; ++i)
+                apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (sceneB.faders[i]);
+        }
     }
 
     void saveSceneB()
@@ -171,13 +199,16 @@ public:
     bool hasSceneA { false };
     bool hasSceneB { false };
 
-    // Public sequencer position tracking accessed by OLED display
+    // Public sequencer position tracking accessed by UI thread
     int currentStep = 0;
     int currentBarInCycle = 1;
 
     std::atomic<int> activePresetIndex { 0 };
     std::atomic<bool> isSceneBActiveAnchor { false };
     std::atomic<bool> isCurrentlyPlayingUI { false };
+
+    float currentSlewValue[24] { 0.5f };
+    float currentSlewTarget[24] { 0.5f };
 
     bool isSceneBActive() const { return isSceneBActiveAnchor.load(); }
     void setSceneBActive (bool shouldBeB) { isSceneBActiveAnchor.store (shouldBeB); }
@@ -202,9 +233,6 @@ private:
     double lfoPhases[8] { 0.0 };
     bool isFirstNoteOfNewChord = true;
     bool lastSceneBActiveState = false;
-
-    float currentSlewValue[24] { 0.5f };
-    float currentSlewTarget[24] { 0.5f };
 
     double mSongPositionPPQ = 0.0;
 
