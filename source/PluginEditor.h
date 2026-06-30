@@ -67,6 +67,7 @@ public:
 
 private:
     void timerCallback() override;
+    void updateSliderTextBoxThemeColors(); // Declared utility helper
 
     // Slide Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fader1Attachment, fader2Attachment, fader3Attachment, fader4Attachment, fader5Attachment, fader6Attachment, fader7Attachment, fader8Attachment;
