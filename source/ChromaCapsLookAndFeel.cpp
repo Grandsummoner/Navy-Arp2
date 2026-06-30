@@ -107,7 +107,7 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
                 if (editor->presetFlashTimer[i] > 0)
                 {
                     isFlashing = true;
-                    int flashState = (editor->presetFlashTimer[i] / 4) % 2; // Alternates every 4 frames (130ms)
+                    int flashState = (editor->presetFlashTimer[i] / 4) % 2; // Alternates every 4 frames (3-blink on/off)
                     if (flashState == 1)
                     {
                         if (editor->presetFlashType[i] == 1) // Save flash
@@ -276,7 +276,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         const float trackWidth = 6.0f;
         const float trackX = static_cast<float>(x) + (static_cast<float>(width) - trackWidth) * 0.5f;
         
-        // Base track background slot (Clean dark track with no level overlay)
+        // Base track background slot (Clean dark track with no level overlay, as meters are in the OLED)
         g.setColour (juce::Colours::black.withAlpha (0.4f));
         g.fillRoundedRectangle (trackX, static_cast<float>(y), trackWidth, static_cast<float>(height), 3.0f);
         
@@ -297,7 +297,8 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         g.setColour (capColour);
         g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f);
 
-        g.setColour (juce::Colours::white);
+        // Neon Cyan indicator line inside fader cap
+        g.setColour (juce::Colour (0xFF00D2FF));
         g.fillRect (thumbX + 2.0f, thumbY + (thumbHeight * 0.5f) - 1.0f, thumbWidth - 4.0f, 2.0f);
     }
     else
