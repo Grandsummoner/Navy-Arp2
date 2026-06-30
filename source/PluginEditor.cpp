@@ -56,22 +56,22 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     for (int i = 0; i < 2; ++i) { addAndMakeVisible (sceneBtns[i]); sceneBtns[i]->setButtonText (sceneTxt[i]); sceneBtns[i]->addMouseListener (this, false); sceneBtns[i]->setLookAndFeel (&chromaLookAndFeel); }
 
     juce::TextButton* utilBtns[] = { &saveButton, &recallButton, &copyButton, &initButton }; juce::String utilTxt[] = { "Save", "Recall", "Copy", "Init" };
-    for (int i = 0; i < 4; ++i) { addAndMakeVisible (utilBtns[i]); utilBtns[i]->setButtonText (utilTxt[i]); utilBtns[i]->setClickingTogglesState (true); utilBtns[i]->addMouseListener (this, false); utilBtns[i]->setLookAndFeel (&chromaLookAndFeel); }
+    for (int i = 0; i < 4; ++i) { utilBtns[i]->setLookAndFeel (&chromaLookAndFeel); addAndMakeVisible (utilBtns[i]); utilBtns[i]->setButtonText (utilTxt[i]); utilBtns[i]->setClickingTogglesState (true); utilBtns[i]->addMouseListener (this, false); }
     saveButton.onClick   = [this] { if (saveButton.getToggleState()) recallButton.setToggleState (false, juce::dontSendNotification); };
     recallButton.onClick = [this] { if (recallButton.getToggleState()) saveButton.setToggleState (false, juce::dontSendNotification); };
 
     // Symmetrical Latching Modifiers directly inside button onClick lambdas
     addAndMakeVisible (diceMeloButton); diceMeloButton.setComponentID ("dice_melody"); diceMeloButton.setButtonText ("Melo"); diceMeloButton.setLookAndFeel (&chromaLookAndFeel); 
-    diceMeloButton.onClick = [this] { if (initButton.getToggleState()) { processor.resetRhythm(); initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceMelody(); } };
+    diceMeloButton.onClick = [this] { if (initButton.getToggleState()) { processor.resetRhythm(); initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceMelody(); } };
     
     addAndMakeVisible (diceArtiButton); diceArtiButton.setComponentID ("dice_articulation"); diceArtiButton.setButtonText ("Arti"); diceArtiButton.setLookAndFeel (&chromaLookAndFeel); 
-    diceArtiButton.onClick = [this] { if (initButton.getToggleState()) { processor.apvts.getParameter(IDs::rest.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::legato.getParamID())->setValueNotifyingHost(0.5f); initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceArticulation(); } };
+    diceArtiButton.onClick = [this] { if (initButton.getToggleState()) { processor.apvts.getParameter(IDs::rest.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::legato.getParamID())->setValueNotifyingHost(0.5f); initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceArticulation(); } };
     
     addAndMakeVisible (diceTimeButton); diceTimeButton.setComponentID ("dice_time"); diceTimeButton.setButtonText ("Time"); diceTimeButton.setLookAndFeel (&chromaLookAndFeel); 
-    diceTimeButton.onClick = [this] { if (initButton.getToggleState()) { processor.diceTime(); initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceTime(); } };
+    diceTimeButton.onClick = [this] { if (initButton.getToggleState()) { processor.diceTime(); initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceTime(); } };
     
     addAndMakeVisible (diceNavyButton); diceNavyButton.setComponentID ("dice_navy"); diceNavyButton.setButtonText ("Navy"); diceNavyButton.setLookAndFeel (&chromaLookAndFeel); 
-    diceNavyButton.onClick = [this] { if (initButton.getToggleState()) { processor.apvts.getParameter(IDs::rhythmMorph.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::entropy.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::harmony.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::chaos.getParamID())->setValueNotifyingHost(0.0f); initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceNavy(); } };
+    diceNavyButton.onClick = [this] { if (initButton.getToggleState()) { processor.apvts.getParameter(IDs::rhythmMorph.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::entropy.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::harmony.getParamID())->setValueNotifyingHost(0.0f); processor.apvts.getParameter(IDs::chaos.getParamID())->setValueNotifyingHost(0.0f); initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); } else { processor.diceNavy(); } };
 
     sceneAButton.onClick = [this] {
         if (initButton.getToggleState()) { processor.clearSceneA(); sceneAFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); }
@@ -122,6 +122,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     juce::Slider* knobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
     for (auto* k : knobs) k->setColour (juce::Slider::textBoxTextColourId, t.textDim);
 
+    updateSliderTextBoxThemeColors();
+
     setResizable (true, true); setResizeLimits (700, 460, 1400, 920); setSize (850, 560); startTimerHz (30);
 }
 
@@ -146,6 +148,8 @@ void PluginEditor::parameterChanged (const juce::String& parameterID, float newV
             juce::Slider* knobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
             for (auto* k : knobs) k->setColour (juce::Slider::textBoxTextColourId, t.textDim);
 
+            updateSliderTextBoxThemeColors();
+
             repaint(); oledDisplay.repaint();
             fader1.repaint(); fader2.repaint(); fader3.repaint(); fader4.repaint(); fader5.repaint(); fader6.repaint(); fader7.repaint(); fader8.repaint();
             rhythmMorphKnob.repaint(); restKnob.repaint(); legatoKnob.repaint(); rateKnob.repaint();
@@ -159,12 +163,26 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
 {
     for (int i = 0; i < 8; ++i) {
         if (event.eventComponent == &presetButtons[i]) {
-            if (saveButton.getToggleState()) { presetPressStartTime[i] = juce::Time::getMillisecondCounter(); presetAlreadySaved[i] = false; }
+            if (initButton.getToggleState()) {
+                // INIT + PRESET SLOT [1-8]: Resets that preset's data buffers
+                processor.presetSlotsSaved[i] = false;
+                processor.presets[i] = SceneState();
+                presetFlashTimer[i] = 24;
+                presetFlashType[i] = 1; // Flash red/orange to show it is cleared
+                initButton.setToggleState (false, juce::dontSendNotification);
+                initButton.repaint();
+            }
+            else if (saveButton.getToggleState()) { 
+                presetPressStartTime[i] = juce::Time::getMillisecondCounter(); 
+                presetAlreadySaved[i] = false; 
+            }
             else if (recallButton.getToggleState()) {
                 processor.loadPreset (i); presetFlashTimer[i] = 24; presetFlashType[i] = 2;
                 recallButton.setToggleState (false, juce::dontSendNotification); recallButton.repaint();
             }
-            else if (event.mods.isRightButtonDown()) { processor.savePreset (i); presetFlashTimer[i] = 24; presetFlashType[i] = 1; }
+            else if (event.mods.isRightButtonDown()) { 
+                processor.savePreset (i); presetFlashTimer[i] = 24; presetFlashType[i] = 1; 
+            }
         }
     }
 
@@ -258,7 +276,13 @@ void PluginEditor::timerCallback()
     bool isArp = *processor.apvts.getRawParameterValue (IDs::arpSeq.getParamID()) > 0.5f; arpSeqButton.setButtonText (isArp ? "Arp" : "Seq");
 
     static bool lastAnchorB = false; bool currentAnchorB = processor.isSceneBActiveAnchor.load();
-    if (currentAnchorB != lastAnchorB) { lastAnchorB = currentAnchorB; sceneAButton.repaint(); sceneBButton.repaint(); }
+    if (currentAnchorB != lastAnchorB) { 
+        lastAnchorB = currentAnchorB; 
+        sceneAFlashTimer = 24; 
+        sceneBFlashTimer = 24; 
+        sceneAButton.repaint(); 
+        sceneBButton.repaint(); 
+    }
 
     // Dynamic visual "Ice Blue" active indicators for freeze mode
     static bool lastFreezeState = false;
@@ -331,6 +355,29 @@ void PluginEditor::timerCallback()
         if (now - initPressStartTime >= 1000) {
             for (auto* param : processor.getParameters()) { if (param != nullptr) param->setValueNotifyingHost (param->getDefaultValue()); }
             initAlreadySaved = true; initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint();
+        }
+    }
+}
+
+void PluginEditor::updateSliderTextBoxThemeColors()
+{
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+    auto t = AppTheme::get (themeIdx);
+
+    juce::Slider* knobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+    for (auto* k : knobs)
+    {
+        if (themeIdx == 1) // Skyline Eurorack (Light Beige Theme)
+        {
+            k->setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xFF111111)); // High contrast black text!
+            k->setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xFFEAE5DC)); // Match the beige background!
+            k->setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0xFF8B8D93).withAlpha (0.4f)); 
+        }
+        else
+        {
+            k->setColour (juce::Slider::textBoxTextColourId, t.textDim);
+            k->setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xFF0F1116));
+            k->setColour (juce::Slider::textBoxOutlineColourId, t.slotOutline);
         }
     }
 }

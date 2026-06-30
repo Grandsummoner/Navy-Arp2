@@ -132,9 +132,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 #endif
     int numSamples = buffer.getNumSamples(); updateLfoModulations (numSamples, bpm);
 
-    // Dynamic Slew Meter Decays
+    // Smoothly decay fader level meters over time
+    double decayFactor = std::exp (-1.0 / (0.12 * mSampleRate)); 
     for (int i = 0; i < 8; ++i)
-        currentSlewTarget[i] = std::max (0.0f, currentSlewTarget[i] - 0.00045f * numSamples);
+        currentSlewTarget[i] *= static_cast<float>(decayFactor);
 
     float slewFactor = static_cast<float>(1.0 - std::exp (-1.0 / (0.15 * mSampleRate)));
     for (int i = 0; i < 24; ++i) currentSlewValue[i] += (currentSlewTarget[i] - currentSlewValue[i]) * slewFactor;
@@ -296,7 +297,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             }
             else
             {
-                currentSlewTarget[currentStep] = 0.22f; // Dim playhead track highlight on rest step
+                currentSlewTarget[currentStep] = 0.22f; // Dim playhead highlight on rest step
             }
         }
     } else { if (mLastStep != -1) { if (mLastNotePlayed != -1) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; } mLastStep = -1; } currentStep = 0; for (int i = 0; i < 8; ++i) currentSlewTarget[i] = 0.0f; }

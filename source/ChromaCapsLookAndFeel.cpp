@@ -58,7 +58,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         }
         else if (button.getClickingTogglesState() && button.getToggleState())
         {
-            g.setColour (juce::Colours::black); // Black text on bright Cyan active toggles
+            g.setColour (juce::Colours::black); // Black text on active Cyan toggles
         }
         else
         {
@@ -93,10 +93,18 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
                 if (editor->presetFlashTimer[i] > 0)
                 {
                     isFlashing = true;
-                    if (editor->presetFlashType[i] == 1) // Save flash
-                        baseColour = juce::Colour (0xFFFF5533); // Red-Orange flash
-                    else if (editor->presetFlashType[i] == 2) // Recall flash
-                        baseColour = juce::Colour (0xFF00D2FF); // Ice Blue/Cyan flash
+                    int flashState = (editor->presetFlashTimer[i] / 4) % 2; // Alternates every 4 frames (130ms)
+                    if (flashState == 1)
+                    {
+                        if (editor->presetFlashType[i] == 1) // Save flash
+                            baseColour = juce::Colour (0xFFFF5533); // Red-Orange flash
+                        else if (editor->presetFlashType[i] == 2) // Recall flash
+                            baseColour = juce::Colour (0xFF00D2FF); // Ice Blue/Cyan flash
+                    }
+                    else
+                    {
+                        baseColour = backgroundColour;
+                    }
                 }
                 break;
             }
@@ -106,23 +114,39 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         {
             if (&button == &(editor->saveButton) && editor->saveFlashTimer > 0)
             {
-                baseColour = juce::Colour (0xFFFF5533);
                 isFlashing = true;
+                int flashState = (editor->saveFlashTimer / 4) % 2;
+                baseColour = (flashState == 1) ? juce::Colour (0xFFFF5533) : backgroundColour;
             }
             else if (&button == &(editor->recallButton) && editor->recallFlashTimer > 0)
             {
-                baseColour = juce::Colour (0xFF00D2FF);
                 isFlashing = true;
+                int flashState = (editor->recallFlashTimer / 4) % 2;
+                baseColour = (flashState == 1) ? juce::Colour (0xFFFF5533) : backgroundColour;
             }
             else if (&button == &(editor->copyButton) && editor->copyFlashTimer > 0)
             {
-                baseColour = juce::Colour (0xFFFFFF33);
                 isFlashing = true;
+                int flashState = (editor->copyFlashTimer / 4) % 2;
+                baseColour = (flashState == 1) ? juce::Colour (0xFFFFFF33) : backgroundColour;
             }
             else if (&button == &(editor->initButton) && editor->initFlashTimer > 0)
             {
-                baseColour = juce::Colour (0xFFFF5533);
                 isFlashing = true;
+                int flashState = (editor->initFlashTimer / 4) % 2;
+                baseColour = (flashState == 1) ? juce::Colour (0xFFFF5533) : backgroundColour;
+            }
+            else if (&button == &(editor->sceneAButton) && editor->sceneAFlashTimer > 0)
+            {
+                isFlashing = true;
+                int flashState = (editor->sceneAFlashTimer / 4) % 2;
+                baseColour = (flashState == 1) ? juce::Colour (0xFFFF5533) : backgroundColour;
+            }
+            else if (&button == &(editor->sceneBButton) && editor->sceneBFlashTimer > 0)
+            {
+                isFlashing = true;
+                int flashState = (editor->sceneBFlashTimer / 4) % 2;
+                baseColour = (flashState == 1) ? juce::Colour (0xFFFF5533) : backgroundColour;
             }
         }
     }
@@ -183,25 +207,11 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
     g.setColour (baseColour);
     g.fillRoundedRectangle (bounds, cornerSize);
 
-    // 3. Draw thin outline (Orange-Red on active toggles for Skyline theme)
-    if (themeIdx == 1 && !isFlashing)
-    {
-        const bool isButtonA = (button.getButtonText() == "A");
-        const bool isButtonB = (button.getButtonText() == "B");
-        const bool isSceneB = processor.isSceneBActiveAnchor.load();
-        const bool isActiveAnchor = (isButtonA && !isSceneB) || (isButtonB && isSceneB);
-        const bool isToggleOn = button.getClickingTogglesState() && button.getToggleState();
-
-        if (isActiveAnchor || isToggleOn)
-            g.setColour (juce::Colour (0xFFFF5533)); // Red-Orange border outline
-        else
-            g.setColour (juce::Colour (0xFF70757D).withAlpha (0.4f));
-    }
+    // Draw thin outline
+    if (themeIdx == 1)
+        g.setColour (juce::Colour (0xFF55555C).withAlpha (0.15f));
     else
-    {
         g.setColour (button.findColour (juce::ComboBox::outlineColourId, true).withAlpha (0.15f));
-    }
-
     g.drawRoundedRectangle (bounds.reduced (0.5f), cornerSize, 1.0f);
 }
 
@@ -223,27 +233,9 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         const float trackWidth = 6.0f;
         const float trackX = static_cast<float>(x) + (static_cast<float>(width) - trackWidth) * 0.5f;
         
-        // Base track background slot
+        // Base track background slot (Clean dark track with no level overlay)
         g.setColour (juce::Colours::black.withAlpha (0.4f));
         g.fillRoundedRectangle (trackX, static_cast<float>(y), trackWidth, static_cast<float>(height), 3.0f);
-
-        // Real-Time per-fader level meters rendering (Cyan track glows)
-        if (slider.getComponentID().startsWith ("fader"))
-        {
-            int faderIndex = slider.getComponentID().getLastCharacters (1).getIntValue() - 1;
-            if (faderIndex >= 0 && faderIndex < 8)
-            {
-                float level = processor.currentSlewValue[faderIndex];
-                if (level > 0.01f)
-                {
-                    float levelHeight = static_cast<float> (height) * level;
-                    float levelY = static_cast<float> (y) + static_cast<float> (height) - levelHeight;
-                    
-                    g.setColour (juce::Colour (0xFF00D2FF).withAlpha (level)); // Dynamic Cyan level track meter
-                    g.fillRoundedRectangle (trackX, levelY, trackWidth, levelHeight, 3.0f);
-                }
-            }
-        }
         
         // Inner 3D bevel highlighting
         g.setColour (juce::Colours::black.withAlpha (0.6f));
