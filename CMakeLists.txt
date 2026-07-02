@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Added 'C' alongside 'CXX' to resolve the CMAKE_C_COMPILE_OBJECT missing variable crash
 project(NavyArp VERSION 1.0.0 LANGUAGES C CXX)
 
 # 1. Include your local JUCE directory
@@ -48,6 +49,7 @@ target_compile_definitions(NavyArp
     PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
+        JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1 # Added to bypass parameter automation ID conflict checks
 )
 
 # 7. Library dependencies
