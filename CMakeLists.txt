@@ -1,37 +1,39 @@
 cmake_minimum_required(VERSION 3.15)
 
-# Added 'C' alongside 'CXX' to resolve compile errors [43]
+# Added 'C' alongside 'CXX' to resolve compile errors
 project(NavyArp VERSION 1.0.0 LANGUAGES C CXX)
 
-# Include your local JUCE directory
+# 1. Include your local JUCE directory
 add_subdirectory(JUCE)
 
-# Add and define the Navy Arp plugin targets (STRICTLY VST3 ONLY) [43]
+# 2. Add and define the Navy Arp plugin targets (STRICTLY VST3 ONLY)
 juce_add_plugin(NavyArp
     COMPANY_NAME "Navy Audio"
-    BUNDLE_ID "com.navyaudio.navyarp"
-    PLUGIN_MANUFACTURER_CODE "Manu"
-    PLUGIN_CODE "Dgav"
-    FORMATS VST3                     # Strictly VST3 format only [43]
+    BUNDLE_ID "com.navyaudio.navyarp"       # Added to resolve the spaces warning
+    PLUGIN_MANUFACTURER_CODE "Manu"         # Changed from hex to clean 4-char string literal
+    PLUGIN_CODE "Dgav"                      # Changed from hex to clean 4-char string literal
+    FORMATS VST3                            # Strictly VST3 format only
     PRODUCT_NAME "Navy Arp"
     PLUGIN_NAME "Navy Arp"
     IS_SYNTH TRUE
-    NEEDS_MIDI_INPUT TRUE
-    NEEDS_MIDI_OUTPUT TRUE
-    COPY_PLUGIN_AFTER_BUILD FALSE    # Disable default multi-folder copy step
+    NEEDS_MIDI_INPUT TRUE                  # Corrected argument name to enable MIDI In
+    NEEDS_MIDI_OUTPUT TRUE                 # Corrected argument name to enable MIDI Out
+    COPY_PLUGIN_AFTER_BUILD FALSE           # Disable default multi-folder copy step
 )
 
-# Mandatory generator macro call to create JuceHeader.h
+# 3. Mandatory generator macro call to create JuceHeader.h for your target
 juce_generate_juce_header(NavyArp)
 
-# Custom post-build step to copy ONLY the single flat VST3 file to your custom folder
+# 4. Custom post-build step to copy ONLY the single flat VST3 file to your custom folder
+# Safely creates the directory path first to prevent GitHub Action runner failures [43]
 add_custom_command(TARGET NavyArp_VST3 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "D:/Music - Software/VST"
     COMMAND ${CMAKE_COMMAND} -E copy
     "$<TARGET_FILE:NavyArp_VST3>"
     "D:/Music - Software/VST/Navy Arp.vst3"
 )
 
-# Source Files mapping
+# 5. Source Files mapping
 target_sources(NavyArp PRIVATE
     source/AppTheme.h
     source/ChromaCapsLookAndFeel.cpp
@@ -44,7 +46,7 @@ target_sources(NavyArp PRIVATE
     source/PluginProcessor.h
 )
 
-# Global compiler definitions
+# 6. Global compiler definitions
 target_compile_definitions(NavyArp
     PUBLIC
         JUCE_WEB_BROWSER=0
@@ -52,7 +54,7 @@ target_compile_definitions(NavyArp
         JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1 # Added to bypass parameter automation ID conflict checks
 )
 
-# Library dependencies
+# 7. Library dependencies
 target_link_libraries(NavyArp
     PRIVATE
         juce::juce_audio_utils
