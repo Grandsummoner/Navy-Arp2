@@ -31,13 +31,20 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     float targetVal = sliderPos;
     if (lfoIndex != -1)
     {
-        int rateChoice = static_cast<int> (processor.lfoRatePtrs[lfoIndex]->load());
-        float depth = processor.lfoDepthPtrs[lfoIndex]->load();
-        if (rateChoice > 0 && depth > 0.02f)
+        auto* ratePtr = processor.lfoRatePtrs[lfoIndex];
+        auto* depthPtr = processor.lfoDepthPtrs[lfoIndex];
+        
+        // Safety check: only read if the pointers are initialized [43]
+        if (ratePtr != nullptr && depthPtr != nullptr)
         {
-            double currentPhase = processor.lfoPhases[lfoIndex];
-            targetVal = sliderPos + (static_cast<float> (std::sin (currentPhase * juce::MathConstants<double>::twoPi)) * depth * 0.5f);
-            targetVal = juce::jlimit (0.0f, 1.0f, targetVal);
+            int rateChoice = static_cast<int> (ratePtr->load());
+            float depth = depthPtr->load();
+            if (rateChoice > 0 && depth > 0.02f)
+            {
+                double currentPhase = processor.lfoPhases[lfoIndex];
+                targetVal = sliderPos + (static_cast<float> (std::sin (currentPhase * juce::MathConstants<double>::twoPi)) * depth * 0.5f);
+                targetVal = juce::jlimit (0.0f, 1.0f, targetVal);
+            }
         }
     }
     int litCount = static_cast<int> (std::round (targetVal * 15.0f));
