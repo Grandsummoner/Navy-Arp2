@@ -1,56 +1,49 @@
-name: CI Build
+name: Build VST3
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main, master ]
   pull_request:
-    branches:
-      - main
-      - master
-
-env:
-  BUILD_TYPE: Release
+    branches: [ main, master ]
+  workflow_dispatch: # Allows you to trigger the build manually from the GitHub Actions tab
 
 jobs:
-  build:
-    name: Build & Package (Windows)
-    runs-on: windows-latest
+  build-windows:
+    runs-on: windows-2022
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive # Ensures JUCE and other submodules are checked out cleanly
 
-      # Forces the runner to use MSVC (cl.exe) instead of MinGW/GCC
-      - name: Set up MSVC Developer Command Prompt
-        uses: ilammy/msvc-dev-cmd@v1
+    - name: Set up MSVC (Visual Studio Compiler)
+      uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Configure CMake
-        run: cmake -B Builds -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -G Ninja .
+    - name: Install Ninja Build System
+      uses: ashutoshvarma/setup-ninja@master
+      with:
+        version: 1.11.1
 
-      - name: Build Plugin & Standalone
-        run: cmake --build Builds --config ${{ env.BUILD_TYPE }} --parallel
+    - name: Configure CMake
+      run: |
+        cmake -B Builds -DCMAKE_BUILD_TYPE=Release -G Ninja .
 
-      # Gather raw compiled Standalone, VST3, and CLAP binaries into the Artifacts folder
-      - name: Locate Built Artifacts
-        shell: bash
-        run: |
-          mkdir -p Artifacts/VST3 Artifacts/Standalone Artifacts/CLAP
-          cp -R "Builds/NavyArp_artefacts/${{ env.BUILD_TYPE }}/VST3/Navy Arp.vst3" Artifacts/VST3/
-          cp "Builds/NavyArp_artefacts/${{ env.BUILD_TYPE }}/Standalone/Navy Arp.exe" Artifacts/Standalone/
-          cp "Builds/NavyArp_artefacts/${{ env.BUILD_TYPE }}/CLAP/Navy Arp.clap" Artifacts/CLAP/
+    - name: Build VST3 Target
+      run: |
+        cmake --build Builds --config Release --parallel
 
-      # Run Inno Setup compiler (ISCC) to bundle the Artifacts/ folder into an installer
-      - name: Build Windows Setup Installer
-        shell: pwsh
-        run: iscc "packaging/installer.iss"
+    - name: Package Flat VST3 Binary Only
+      shell: bash
+      run: |
+        # Create a clean folder for our final download
+        mkdir -p Artifacts/VST3
+        
+        # Copy strictly the single, flat VST3 binary file out of the compiled bundle
+        cp "Builds/NavyArp_artefacts/Release/VST3/Navy Arp.vst3/Contents/x86_64-win/Navy Arp.vst3" "Artifacts/VST3/Navy Arp.vst3"
 
-      # Upload the single, unified Setup Installer file
-      - name: Upload Windows Setup Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: NavyArp-Windows-Installer
-          path: Artifacts/Navy_Arp_Installer.exe
+    - name: Upload Single-File VST3 Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Navy-Arp-VST3-Windows
+        path: Artifacts/VST3/Navy Arp.vst3
