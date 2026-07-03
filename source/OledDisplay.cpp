@@ -92,6 +92,8 @@ void OledDisplay::paint (juce::Graphics& g)
         // =====================================================================
         // MATH SETUP: DEEP GEODESIC 3D CONSTELLATION GLOBE [43]
         // =====================================================================
+        float morphVal = *processor.apvts.getRawParameterValue (IDs::morph.getParamID()); // Missing morphVal declaration restored [43]
+
         struct Point3D { float x, y, z; };
         std::vector<Point3D> vertices;
 
@@ -108,7 +110,7 @@ void OledDisplay::paint (juce::Graphics& g)
                 vertices.push_back ({ sinPitch * std::cos (yawAngle), cosPitch, sinPitch * std::sin (yawAngle) });
             }
         }
-        vertices.push_back ({ 0.0f, -1.0f, 0.0f }); // Bottom pole (Index 61)
+        vertices.push_back ({ 0.0f, -1.0f, 0.0f }); // Bottom pole
 
         // Slow, continuous rotation angle mapped over system millisecond timers [43]
         double timeMs = juce::Time::getMillisecondCounterHiRes();
