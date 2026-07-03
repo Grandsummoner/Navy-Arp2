@@ -23,7 +23,7 @@ public:
     double lastCameoTriggerTime = 0.0;
     double nextCameoInterval = 300000.0; // 5 minutes minimum (300,000 ms) [43]
 
-    // Persistent structures for the 4-triangle multi-speed kaleidoscope [43]
+    // Persistent structure for the 4-triangle multi-speed kaleidoscope [43]
     struct FacetTriangle
     {
         int v1 = 0, v2 = 1, v3 = 12;
@@ -76,8 +76,8 @@ void OledDisplay::timerCallback()
 void OledDisplay::paint (juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    float width = bounds.getWidth();   // Made globally visible in paint() [43]
-    float height = bounds.getHeight(); // Made globally visible in paint() [43]
+    float width = bounds.getWidth();   // Restored top-level width declaration [43]
+    float height = bounds.getHeight(); // Restored top-level height declaration [43]
 
     // 1. Fill Screen Background with flat, high-contrast obsidian black void [43]
     g.fillAll (juce::Colour (0xFF05070A));
@@ -222,105 +222,53 @@ void OledDisplay::paint (juce::Graphics& g)
         juce::Colour nodeGlowColour = juce::Colour::fromString ("#FF00E1FF");                  // Electric Cyan Glow [43]
         juce::Colour nodeCoreColour = juce::Colour::fromString ("#FF80F3FF");                  // White/Cyan Core
 
-        // Draw wireframe connection lines (Intricate 276-line geodesic mesh) [43]
-        g.setColour (lineColour);
-        auto drawEdge = [&](int idx1, int idx2)
-        {
-            g.drawLine (projectedPoints[idx1].x, projectedPoints[idx1].y,
-                        projectedPoints[idx2].x, projectedPoints[idx2].y, 0.75f);
-        };
-        for (int i = 1; i <= 12; ++i) drawEdge (0, i); // Top pole to first ring
-        for (int ringIdx = 0; ringIdx < 4; ++ringIdx)
-        {
-            int offset1 = 1 + ringIdx * 12;
-            int offset2 = 1 + (ringIdx + 1) * 12;
-            for (int i = 0; i < 12; ++i) // FIXED: Connected all 12 nodes across entire circumference [43]
-            {
-                // Horizontal ring connections
-                drawEdge (offset1 + i, offset1 + (i + 1) % 12);
-                
-                // Vertical bridging lines
-                drawEdge (offset1 + i, offset2 + i);
-                
-                // Diagonal cross connections to increase geometric density to 276 lines [43]
-                drawEdge (offset1 + i, offset2 + (i + 1) % 12);
-                drawEdge (offset1 + (i + 1) % 12, offset2 + i);
-            }
-        }
-        int offset5 = 49;
-        for (int i = 0; i < 12; ++i)
-        {
-            drawEdge (offset5 + i, offset5 + (i + 1) % 12);
-            drawEdge (offset5 + i, 61); // Bottom pole to ring 5
-        }
-
-        // =====================================================================
-        // RENDER: STEP-REACTIVE TELEPORTING & FLICKERING TRIANGLES [43]
-        // =====================================================================
+        // 1. Draw glowing, step-reactive facets (triangles) [43]
         if (isPlaying && state != nullptr)
         {
+            double teleportPeriodA = 400.0; // Triangle 1 (Magenta) teleports every 400ms [43]
+            double teleportPeriodB = 600.0; // Triangle 2 (Orange) teleports every 600ms [43]
+            
             juce::Random triRand (static_cast<int64_t> (timeMs));
-
-            juce::Colour colors[] = {
-                juce::Colour::fromString ("#FFFF3366"), // Coral Red / Neon Magenta [43]
-                juce::Colour::fromString ("#FFFF8D11"), // Sun Orange [43]
-                juce::Colour::fromString ("#FF00FF66"), // Emerald Green [43]
-                juce::Colour::fromString ("#FF0055FF")  // Sapphire Blue [43]
-            };
-            double speeds[] = { 533.0, 1200.0, 1600.0, 8000.0 }; // Multi-speed definitions [43]
-
-            // Initialize triangles on first play run [43]
-            if (! state->isInitialized)
+            
+            // Triangle 1 Teleport & Flicker [43]
+            if (timeMs - state->lastTeleportTimeA >= teleportPeriodA)
             {
-                state->isInitialized = true;
-                for (int i = 0; i < 4; ++i)
-                {
-                    state->triangles[i].v1 = triRand.nextInt (62);
-                    state->triangles[i].v2 = (state->triangles[i].v1 + 1) % 62;
-                    state->triangles[i].v3 = (state->triangles[i].v1 + 12) % 62;
-                    state->triangles[i].lastTeleportTime = timeMs - (triRand.nextDouble() * 300.0);
-                    state->triangles[i].currentPeriod = speeds[i];
-                    state->triangles[i].colour = colors[i];
-                    state->triangles[i].isActive = (triRand.nextFloat() < 0.55f); // 55% active chance on start [43]
-                }
+                state->lastTeleportTimeA = timeMs;
+                state->tri1_v1 = triRand.nextInt (62);
+                state->tri1_v2 = (state->tri1_v1 + 1) % 62;
+                state->tri1_v3 = (state->tri1_v1 + 12) % 62;
             }
-
-            for (int i = 0; i < 4; ++i)
+            
+            // Triangle 2 Teleport & Flicker [43]
+            if (timeMs - state->lastTeleportTimeB >= teleportPeriodB)
             {
-                auto& tri = state->triangles[i];
-
-                // Teleport when the current randomized period has elapsed [43]
-                if (timeMs - tri.lastTeleportTime >= tri.currentPeriod)
-                {
-                    tri.lastTeleportTime = timeMs;
-                    tri.v1 = triRand.nextInt (62);
-                    tri.v2 = (tri.v1 + 1) % 62;
-                    tri.v3 = (tri.v1 + 12) % 62;
-
-                    // Randomly assign a new color and a new speed out of the palettes [43]
-                    tri.currentPeriod = speeds[triRand.nextInt (4)];
-                    tri.colour = colors[triRand.nextInt (4)];
-                    
-                    // Roll 55% chance of being active for this cycle, allowing 0-4 active triangles [43]
-                    tri.isActive = (triRand.nextFloat() < 0.55f);
-                }
-
-                if (tri.isActive)
-                {
-                    // Smoothly oscillate flicker frequency depending on its active speed [43]
-                    float frequencyFactor = static_cast<float> (500.0 / tri.currentPeriod);
-                    float flicker = static_cast<float> (std::sin (timeMs * 0.05f * frequencyFactor)) * 0.4f + 0.6f;
-
-                    juce::Path triPath;
-                    triPath.startNewSubPath (projectedPoints[tri.v1]);
-                    triPath.lineTo (projectedPoints[tri.v2]);
-                    triPath.lineTo (projectedPoints[tri.v3]);
-                    triPath.closeSubPath();
-
-                    g.setColour (tri.colour.withAlpha (0.28f * flicker));
-                    g.fillPath (triPath);
-                }
+                state->lastTeleportTimeB = timeMs;
+                state->tri2_v1 = triRand.nextInt (62);
+                state->tri2_v2 = (state->tri2_v1 + 1) % 62;
+                state->tri2_v3 = (state->tri2_v1 + 12) % 62;
             }
+            
+            // Calculate high-frequency flicker (12Hz and 15Hz modulator waves) [43]
+            float flickerA = static_cast<float> (std::sin (timeMs * 0.075)) * 0.4f + 0.6f;
+            float flickerB = static_cast<float> (std::sin (timeMs * 0.095)) * 0.4f + 0.6f;
+            
+            // Draw Triangle 1 (Cyberpunk Coral Red / Neon Magenta) [43]
+            juce::Path path1;
+            path1.startNewSubPath (projectedPoints[state->tri1_v1]);
+            path1.lineTo (projectedPoints[state->tri1_v2]);
+            path1.lineTo (projectedPoints[state->tri1_v3]);
+            path1.closeSubPath();
+            g.setColour (juce::Colour::fromString ("#FFFF3366").withAlpha (0.28f * flickerA));
+            g.fillPath (path1);
+            
+            // Draw Triangle 2 (Sun Orange) [43]
+            juce::Path path2;
+            path2.startNewSubPath (projectedPoints[state->tri2_v1]);
+            path2.lineTo (projectedPoints[state->tri2_v2]);
+            path2.lineTo (projectedPoints[state->tri2_v3]);
+            path2.closeSubPath();
+            g.setColour (juce::Colour::fromString ("#FFFF8D11").withAlpha (0.28f * flickerB));
+            g.fillPath (path2);
         }
 
         // Draw active glowing star nodes, modulated in vertical waves by the 8 LFOs! [43]
@@ -364,6 +312,38 @@ void OledDisplay::paint (juce::Graphics& g)
                 g.setColour (nodeCoreColour.withAlpha (nodeAlpha));
                 g.fillEllipse (projectedPoints[i].x - 1.0f, projectedPoints[i].y - 1.0f, 2.0f, 2.0f);
             }
+        }
+
+        // Draw wireframe connection lines (Intricate 276-line geodesic mesh) [43]
+        g.setColour (lineColour);
+        auto drawEdge = [&](int idx1, int idx2)
+        {
+            g.drawLine (projectedPoints[idx1].x, projectedPoints[idx1].y,
+                        projectedPoints[idx2].x, projectedPoints[idx2].y, 0.75f);
+        };
+        for (int i = 1; i <= 12; ++i) drawEdge (0, i); // Top pole to first ring
+        for (int ringIdx = 0; ringIdx < 4; ++ringIdx)
+        {
+            int offset1 = 1 + ringIdx * 12;
+            int offset2 = 1 + (ringIdx + 1) * 12;
+            for (int i = 0; i < 12; ++i) // FIXED: Connected all 12 nodes across entire circumference [43]
+            {
+                // Horizontal ring connections
+                drawEdge (offset1 + i, offset1 + (i + 1) % 12);
+                
+                // Vertical bridging lines
+                drawEdge (offset1 + i, offset2 + i);
+                
+                // Diagonal cross connections to increase geometric density to 276 lines [43]
+                drawEdge (offset1 + i, offset2 + (i + 1) % 12);
+                drawEdge (offset1 + (i + 1) % 12, offset2 + i);
+            }
+        }
+        int offset5 = 49;
+        for (int i = 0; i < 12; ++i)
+        {
+            drawEdge (offset5 + i, offset5 + (i + 1) % 12);
+            drawEdge (offset5 + i, 61); // Bottom pole to ring 5
         }
 
         // =====================================================================
@@ -475,24 +455,9 @@ void OledDisplay::paint (juce::Graphics& g)
 
         displayArea.removeFromTop (3.0f);
 
-        int rootKeyIdx = juce::jlimit (0, 11, static_cast<int> (*processor.apvts.getRawParameterValue (IDs::rootKey.getParamID())));
-        juce::StringArray keys { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, scales { "Major", "Natural Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" };
-        juce::String keyStr = keys[rootKeyIdx];
-
-        int scaleIdx = juce::jlimit (0, 9, static_cast<int> (*processor.apvts.getRawParameterValue (IDs::scaleType.getParamID())));
-        juce::String scaleStr = scales[scaleIdx];
-
-        bool isPolyActive = *processor.apvts.getRawParameterValue (IDs::poly.getParamID()) > 0.5f;
-        float currentHarmony = *processor.apvts.getRawParameterValue (IDs::harmony.getParamID());
-        juce::String voiceStr = "MONO";
-        if (isPolyActive)
-        {
-            if (currentHarmony >= 0.25f && currentHarmony < 0.5f) voiceStr = "DUO";
-            else if (currentHarmony >= 0.5f) voiceStr = "TRIAD";
-            else voiceStr = "MONO";
-        }
-
-        int rateIdx = juce::jlimit (0, 3, static_cast<int> (*processor.apvts.getRawParameterValue (IDs::rate.getParamID())));
+        // Fetch scale, root key, voice, rates, and octaves choices dynamically from the APVTS parameters
+        // Corrected reuse of the outer rateIdx variable to prevent duplicate redefinition crashes [43]
+        rateIdx = juce::jlimit (0, 3, static_cast<int> (*processor.apvts.getRawParameterValue (IDs::rate.getParamID())));
         juce::StringArray rates { "1/4", "1/8", "1/16", "1/32" };
         juce::String rateStr = rates[rateIdx];
 
