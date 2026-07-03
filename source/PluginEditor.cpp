@@ -50,6 +50,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     morphCrossfader.setSliderStyle (juce::Slider::LinearHorizontal); morphCrossfader.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     morphCrossfader.setColour (juce::Slider::thumbColourId, juce::Colour (0xFFFFFFFF)); morphCrossfader.setColour (juce::Slider::trackColourId, juce::Colour (0xFF222222));
+    morphCrossfader.setComponentID ("morph"); // Tagged to render as Active Glow Vector Crossfader [43]
     morphCrossfader.setLookAndFeel (&chromaLookAndFeel); addAndMakeVisible (morphCrossfader);
 
     juce::TextButton* deckBtns[] = { &latchButton, &arpSeqButton, &polyButton, &freezeButton }; juce::String deckTxt[] = { "Latch", "SEQ", "Poly", "Freeze" };

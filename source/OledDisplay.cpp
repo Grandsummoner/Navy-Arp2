@@ -127,6 +127,39 @@ void OledDisplay::paint (juce::Graphics& g)
         g.drawText (metaText, displayArea.removeFromTop (12.0f), juce::Justification::centred, true);
 
         // =====================================================================
+        // RENDER: REAL-TIME OSCILLOSCOPE MONITOR BACKGROUND [43]
+        // =====================================================================
+        juce::Path wavePath;
+        float w = displayArea.getWidth();
+        float h = displayArea.getHeight();
+        float startY = displayArea.getY() + h * 0.42f;
+        float maxAmplitude = h * 0.25f;
+
+        float morphPos = *processor.apvts.getRawParameterValue (IDs::morph.getParamID());
+        double lfoPhase1 = processor.lfoPhases[0]; // Left/Morph LFO Phase
+        double lfoPhase2 = processor.lfoPhases[4]; // Right/Entropy LFO Phase
+
+        for (float x = 0.0f; x < w; x += 2.0f)
+        {
+            float t = x / w;
+            // Blend two sine waves based on the crossfader morph position [43]
+            double angle1 = (t * juce::MathConstants<double>::twoPi * 2.0) + (lfoPhase1 * juce::MathConstants<double>::twoPi);
+            double angle2 = (t * juce::MathConstants<double>::twoPi * 3.0) + (lfoPhase2 * juce::MathConstants<double>::twoPi);
+            double sampleVal = std::sin (angle1) * (1.0f - morphPos) + std::sin (angle2) * morphPos;
+            
+            float y = startY + (static_cast<float> (sampleVal) * maxAmplitude);
+            
+            if (x == 0.0f) wavePath.startNewSubPath (displayArea.getX() + x, y);
+            else           wavePath.lineTo (displayArea.getX() + x, y);
+        }
+
+        // Draw double-layer glowing vector line [43]
+        g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.10f));
+        g.strokePath (wavePath, juce::PathStrokeType (3.5f));
+        g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.35f));
+        g.strokePath (wavePath, juce::PathStrokeType (1.25f));
+
+        // =====================================================================
         // RENDER: 8 SEGMENTED LED LADDERS (STEP LEVEL MONITOR)
         // =====================================================================
         const float spacing = 6.0f;
@@ -166,12 +199,12 @@ void OledDisplay::paint (juce::Graphics& g)
                     if (isActiveStep)
                         g.setColour (juce::Colour (0xFFFF4500)); // Glowing orange-red playhead
                     else
-                        g.setColour (juce::Colour (0xFF441105)); // Muted dim red/brown
+                        g.setColour (juce::Colour (0xFF441105).withAlpha (0.85f)); // Muted dim red/brown
                 }
                 else
                 {
                     // Unfilled empty segments
-                    g.setColour (juce::Colour (0xFF111317));
+                    g.setColour (juce::Colour (0xFF111317).withAlpha (0.75f));
                 }
 
                 g.fillRect (segmentRect);

@@ -62,35 +62,50 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     bool isLeftKnob = (cid == "rhythmMorph" || cid == "rest" || cid == "legato" || cid == "rate");
     juce::Colour activeColor = isLeftKnob ? t.knobFillLeft : t.knobFillRight;
 
-    // 3. Draw 15 surrounding LEDs (DJ TechTools style) [43]
+    // 3. Draw 15 surrounding LEDs with Neon Glow Radial Halo [43]
     for (int i = 0; i < 15; ++i)
     {
         float angle = rotaryStartAngle + (static_cast<float> (i) / 14.0f) * (rotaryEndAngle - rotaryStartAngle);
-        float ledX = centerX + ledRadius * std::sin (angle) - ledDiameter * 0.5f;
-        float ledY = centerY - ledRadius * std::cos (angle) - ledDiameter * 0.5f;
+        float ledX = centerX + ledRadius * std::sin (angle);
+        float ledY = centerY - ledRadius * std::cos (angle);
 
         if (i < litCount)
         {
-            g.setColour (activeColor); // Glowing active indicator LED
+            // Draw Level 3: Outer soft radial bloom halo [43]
+            float outerRadius = 4.5f;
+            juce::ColourGradient glow (activeColor.withAlpha (0.45f), ledX, ledY,
+                                       activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
+                                       true);
+            g.setGradientFill (glow);
+            g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
+
+            // Draw Level 2: Bright inner core [43]
+            float innerRadius = 1.25f;
+            g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.3f));
+            g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
         else
         {
-            g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f)); // Dim inactive LED
+            // Dim inactive LED
+            float innerRadius = 1.0f;
+            g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.35f));
+            g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
-        g.fillEllipse (ledX, ledY, ledDiameter, ledDiameter);
     }
 
-    // 4. Draw Matte Black Encoders with a clean white pointer indicator
+    // 4. Draw Matte Black Encoders with a clean white pointer line
     g.setColour (juce::Colour (0xFF121417));
     g.fillEllipse (centerX - knobRadius, centerY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.drawEllipse (centerX - knobRadius, centerY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f, 1.0f);
 
     float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
     juce::Path path;
-    float pointerThickness = 2.0f;
-    float pointerLength = knobRadius * 0.8f;
+    float pointerThickness = 1.75f;
+    float pointerLength = knobRadius * 0.75f;
     path.addRectangle (-pointerThickness * 0.5f, -knobRadius, pointerThickness, pointerLength);
     path.applyTransform (juce::AffineTransform::rotation (angle).translated (centerX, centerY));
-    g.setColour (juce::Colours::white);
+    g.setColour (juce::Colours::white.withAlpha (0.95f));
     g.fillPath (path);
 }
 
@@ -361,8 +376,42 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
     auto t = AppTheme::get (themeIdx);
 
     const bool isVertical = (style == juce::Slider::LinearVertical);
-    
-    if (isVertical)
+    const juce::String cid = slider.getComponentID();
+
+    if (cid == "morph") // Active Glow Vector Crossfader centerpiece [43]
+    {
+        const float trackHeight = 4.0f;
+        const float trackY = static_cast<float>(y) + (static_cast<float>(height) - trackHeight) * 0.5f;
+
+        // Draw Left (Scene A) track with dynamic glow based on morph position
+        float progress = sliderPos / static_cast<float>(width);
+        float alphaA = 1.0f - progress;
+        g.setColour (t.crossfaderTrackA.withAlpha (alphaA * 0.6f + 0.1f));
+        g.fillRoundedRectangle (static_cast<float>(x), trackY, sliderPos - static_cast<float>(x), trackHeight, 2.0f);
+
+        // Draw Right (Scene B) track with dynamic glow based on morph position
+        float alphaB = progress;
+        g.setColour (t.crossfaderTrackB.withAlpha (alphaB * 0.6f + 0.1f));
+        g.fillRoundedRectangle (sliderPos, trackY, static_cast<float>(x + width) - sliderPos, trackHeight, 2.0f);
+
+        // Draw Custom Widescreen Fader Cap
+        const float thumbWidth = 14.0f;
+        const float thumbHeight = 22.0f;
+        const float thumbX = sliderPos - (thumbWidth * 0.5f);
+        const float thumbY = static_cast<float>(y) + (static_cast<float>(height) - thumbHeight) * 0.5f;
+
+        // Metallic dark-grey cap background
+        g.setColour (juce::Colour (0xFF1E222A));
+        g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.4f));
+        g.drawRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f, 1.0f);
+
+        // Vertical indicator notch blending from Scene A to Scene B color
+        juce::Colour notchColor = t.crossfaderTrackA.interpolatedWith (t.crossfaderTrackB, progress);
+        g.setColour (notchColor);
+        g.fillRect (sliderPos - 1.0f, thumbY + 2.0f, 2.0f, thumbHeight - 4.0f);
+    }
+    else if (isVertical)
     {
         const float trackWidth = 6.0f;
         const float trackX = static_cast<float>(x) + (static_cast<float>(width) - trackWidth) * 0.5f;
