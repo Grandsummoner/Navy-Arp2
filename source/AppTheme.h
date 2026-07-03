@@ -6,16 +6,16 @@ namespace AppTheme
 {
     struct Theme
     {
-        juce::Colour backgroundStart; // Start color of your faceplate background gradient [43]
-        juce::Colour backgroundEnd;   // End color of your faceplate background gradient [43]
+        juce::Colour backgroundStart; // Start color of your faceplate background gradient [cite: 43]
+        juce::Colour backgroundEnd;   // End color of your faceplate background gradient [cite: 43]
         juce::Colour border;
         juce::Colour textDim;
         juce::Colour slotOutline;
         juce::Colour knobFillLeft;     // Custom left knob indicator color (Amber/Gold or Red-Orange)
         juce::Colour knobFillRight;    // Custom right knob indicator color
         juce::Colour faderCap;         // Custom deep Navy Blue fader cap color
-        juce::Colour crossfaderTrackA; // Accent color for Scene A (Left of crossfader) [43]
-        juce::Colour crossfaderTrackB; // Accent color for Scene B (Right of crossfader) [43]
+        juce::Colour crossfaderTrackA; // Accent color for Scene A (Left of crossfader) [cite: 43]
+        juce::Colour crossfaderTrackB; // Accent color for Scene B (Right of crossfader) [cite: 43]
     };
 
     inline Theme get (int index)
@@ -24,13 +24,13 @@ namespace AppTheme
         {
             case 0: // Navy Cyber (Stunning Midnight-to-Obsidian Gradient)
                 return {
-                    juce::Colour::fromString ("#FF0D1E36"), // backgroundStart (glowing deep midnight navy) [43]
-                    juce::Colour::fromString ("#FF030508"), // backgroundEnd (ultra-dark obsidian near-black) [43]
+                    juce::Colour::fromString ("#FF0D1E36"), // backgroundStart (glowing deep midnight navy) [cite: 43]
+                    juce::Colour::fromString ("#FF030508"), // backgroundEnd (ultra-dark obsidian near-black) [cite: 43]
                     juce::Colour::fromString ("#FF5D8AA8"), // border (softer slate blue-grey)
                     juce::Colour::fromString ("#FF888888"), // textDim
                     juce::Colour::fromString ("#FF181C24"), // slotOutline
-                    juce::Colour::fromString ("#FFFFB300"), // knobFillLeft (Amber/Gold)
-                    juce::Colour::fromString ("#FFFFB300"), // knobFillRight (Amber/Gold)
+                    juce::Colour::fromString ("#FFFFB300"), // knobFillLeft (Premium Amber/Gold indicator instead of neon cyan)
+                    juce::Colour::fromString ("#FFFFB300"), // knobFillRight (Premium Amber/Gold)
                     juce::Colour::fromString ("#FF0A1D33"), // faderCap (Deep Navy Blue)
                     juce::Colour::fromString ("#FFFFB300"), // crossfaderTrackA (Amber/Gold)
                     juce::Colour::fromString ("#FF00D2FF")  // crossfaderTrackB (Neon Ice Blue)

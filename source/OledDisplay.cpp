@@ -42,20 +42,8 @@ void OledDisplay::paint (juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
 
-    // 1. Fill Screen Background with a rich, deep midnight radial gradient [43]
-    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
-    auto t = AppTheme::get (themeIdx);
-
-    float width = bounds.getWidth();
-    float height = bounds.getHeight();
-    float centerX = width * 0.20f; // Centered behind your 3D globe [43]
-    float centerY = height * 0.5f;
-
-    juce::ColourGradient bgGlow (juce::Colour (0xFF102030).withAlpha (0.4f), centerX, centerY,
-                                 juce::Colour (0xFF030508), width * 0.5f, centerY,
-                                 true);
-    g.setGradientFill (bgGlow);
-    g.fillRoundedRectangle (bounds, 4.0f);
+    // 1. Fill Screen Background with flat, high-contrast obsidian black void [43]
+    g.fillAll (juce::Colour (0xFF05070A));
 
     // 2. Draw Bezel with Inset Glass Look
     g.setColour (juce::Colours::black.withAlpha (0.8f));
@@ -67,6 +55,9 @@ void OledDisplay::paint (juce::Graphics& g)
     g.drawVerticalLine (static_cast<int> (bounds.getWidth() - 1.0f), 0.0f, bounds.getHeight());
 
     auto displayArea = bounds.reduced (12.0f);
+
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+    auto t = AppTheme::get (themeIdx);
 
     if (isOverlayActive)
     {
@@ -99,21 +90,21 @@ void OledDisplay::paint (juce::Graphics& g)
     else
     {
         // =====================================================================
-        // MATH SETUP: 3D CONSTELLATION GLOBE [43]
+        // MATH SETUP: DEEP GEODESIC 3D CONSTELLATION GLOBE [43]
         // =====================================================================
         struct Point3D { float x, y, z; };
         std::vector<Point3D> vertices;
 
-        // Generate a simple sphere layout with 3 rings of 6 points plus top and bottom poles [43]
+        // Generate a highly complex sphere layout with 5 rings of 12 points each plus poles [43]
         vertices.push_back ({ 0.0f, 1.0f, 0.0f }); // Top pole
-        for (int ring = 1; ring <= 3; ++ring)
+        for (int ring = 1; ring <= 5; ++ring)
         {
-            float ringPitch = juce::MathConstants<float>::pi * (static_cast<float> (ring) / 4.0f);
+            float ringPitch = juce::MathConstants<float>::pi * (static_cast<float> (ring) / 6.0f);
             float sinPitch = std::sin (ringPitch);
             float cosPitch = std::cos (ringPitch);
-            for (int pt = 0; pt < 6; ++pt)
+            for (int pt = 0; pt < 12; ++pt)
             {
-                float yawAngle = juce::MathConstants<float>::twoPi * (static_cast<float> (pt) / 6.0f);
+                float yawAngle = juce::MathConstants<float>::twoPi * (static_cast<float> (pt) / 12.0f);
                 vertices.push_back ({ sinPitch * std::cos (yawAngle), cosPitch, sinPitch * std::sin (yawAngle) });
             }
         }
@@ -121,8 +112,8 @@ void OledDisplay::paint (juce::Graphics& g)
 
         // Slow, continuous rotation angle mapped over system millisecond timers [43]
         double timeMs = juce::Time::getMillisecondCounterHiRes();
-        float yaw = static_cast<float> (timeMs * 0.00015);
-        float pitch = static_cast<float> (timeMs * 0.00007);
+        float yaw = static_cast<float> (timeMs * 0.00012);
+        float pitch = static_cast<float> (timeMs * 0.00005);
 
         auto rotatePoint = [&](Point3D p, float yAngle, float pAngle) -> Point3D
         {
@@ -137,12 +128,11 @@ void OledDisplay::paint (juce::Graphics& g)
             return { x1, y2, z2 };
         };
 
-        // Project 3D coordinates onto Left-hand viewport
-        auto globeArea = displayArea.removeFromLeft (width * 0.38f); // Allocate 38% of OLED space to the Globe [43]
-        float globeCenterX = globeArea.getCentreX(); // Corrected to British English spelling
-        float globeCenterY = globeArea.getCentreY(); // Corrected to British English spelling
-        float globeRadius = juce::jmin (globeArea.getWidth(), globeArea.getHeight()) * 0.40f;
-        float cameraDistance = 2.0f;
+        // Project 3D coordinates onto central background viewport
+        float globeCenterX = displayArea.getCentreX(); // Corrected to British English spelling [43]
+        float globeCenterY = displayArea.getCentreY() + 8.0f; // Shift slightly down to center
+        float globeRadius = displayArea.getHeight() * 0.45f;
+        float cameraDistance = 2.2f;
 
         std::vector<juce::Point<float>> projectedPoints;
         for (const auto& v : vertices)
@@ -155,22 +145,22 @@ void OledDisplay::paint (juce::Graphics& g)
         }
 
         // =====================================================================
-        // RENDER: LEFT SIDEBAR - 3D CONSTELLATION GLOBE & SUNFLARES [43]
+        // RENDER: LAYER 2 - BACKGROUND DENSE 3D GLOBE (270+ lines) [43]
         // =====================================================================
-        const int activeStep = processor.currentStep.load();
-        const bool isPlaying = processor.isCurrentlyPlayingUI.load();
-        
         float morphVal = *processor.apvts.getRawParameterValue (IDs::morph.getParamID());
         juce::Colour activeColor = t.knobFillLeft.interpolatedWith (t.knobFillRight, morphVal);
+
+        const int activeStep = processor.currentStep.load();
+        const bool isPlaying = processor.isCurrentlyPlayingUI.load();
 
         // 1. Draw glowing, step-reactive facets (triangles) [43]
         if (isPlaying)
         {
             // Seed deterministic random triangles based on activeStep to prevent jittering within a step
             juce::Random r (activeStep + 100);
-            int v1 = r.nextInt (20);
-            int v2 = (v1 + 1) % 20;
-            int v3 = (v1 + 5) % 20;
+            int v1 = r.nextInt (62);
+            int v2 = (v1 + 1) % 62;
+            int v3 = (v1 + 12) % 62;
 
             juce::Path triPath;
             triPath.startNewSubPath (projectedPoints[v1]);
@@ -182,87 +172,54 @@ void OledDisplay::paint (juce::Graphics& g)
             g.fillPath (triPath);
         }
 
-        // 2. Draw wireframe connection lines [43]
-        g.setColour (activeColor.withAlpha (0.18f));
+        // 2. Draw wireframe connection lines (Intricate 276-line geodesic mesh) [43]
+        g.setColour (activeColor.withAlpha (0.12f));
         auto drawEdge = [&](int idx1, int idx2)
         {
             g.drawLine (projectedPoints[idx1].x, projectedPoints[idx1].y,
                         projectedPoints[idx2].x, projectedPoints[idx2].y, 0.75f);
         };
-        for (int i = 1; i <= 6; ++i) drawEdge (0, i); // Top pole to first ring
-        for (int ringIdx = 0; ringIdx < 2; ++ringIdx)
+        for (int i = 1; i <= 12; ++i) drawEdge (0, i); // Top pole to first ring
+        for (int ringIdx = 0; ringIdx < 4; ++ringIdx)
         {
-            int offset1 = 1 + ringIdx * 6;
-            int offset2 = 1 + (ringIdx + 1) * 6;
-            for (int i = 0; i < 6; ++i)
+            int offset1 = 1 + ringIdx * 12;
+            int offset2 = 1 + (ringIdx + 1) * 12;
+            for (int i = 0; i < 12; ++i)
             {
-                drawEdge (offset1 + i, offset1 + (i + 1) % 6);
+                // Horizontal ring connections
+                drawEdge (offset1 + i, offset1 + (i + 1) % 12);
+                
+                // Vertical bridging lines
                 drawEdge (offset1 + i, offset2 + i);
+                
+                // Diagonal cross connections to increase geometric density to 276 lines [43]
+                drawEdge (offset1 + i, offset2 + (i + 1) % 12);
+                drawEdge (offset1 + (i + 1) % 12, offset2 + i);
             }
         }
-        int offset3 = 13;
-        for (int i = 0; i < 6; ++i)
+        int offset5 = 49;
+        for (int i = 0; i < 12; ++i)
         {
-            drawEdge (offset3 + i, offset3 + (i + 1) % 6);
-            drawEdge (offset3 + i, 19); // Bottom pole to last ring
+            drawEdge (offset5 + i, offset5 + (i + 1) % 12);
+            drawEdge (offset5 + i, 61); // Bottom pole to ring 5
         }
 
         // 3. Draw active glowing star nodes [43]
         for (const auto& pt : projectedPoints)
         {
-            g.setColour (activeColor);
-            g.fillEllipse (pt.x - 1.25f, pt.y - 1.25f, 2.5f, 2.5f);
+            g.setColour (activeColor.withAlpha (0.4f));
+            g.fillEllipse (pt.x - 1.0f, pt.y - 1.0f, 2.0f, 2.0f);
         }
 
-        // 4. Draw rare high-voltage lightning discharges/sunflares snapping to edge [43]
-        std::uint64_t frameCounter = static_cast<std::uint64_t> (timeMs / 33.3); // ~30fps steps
-        bool triggerFlare = (frameCounter % 300) < 4; // Active for 4 frames (130ms) every 10 seconds
-
-        if (triggerFlare)
-        {
-            juce::Random flareRand (frameCounter / 300);
-            int nodeIdx = flareRand.nextInt (20);
-
-            // Determine target boundary wall point [43]
-            float targetX = (flareRand.nextBool()) ? displayArea.getX() : (displayArea.getX() + width * 0.38f);
-            float targetY = displayArea.getY() + flareRand.nextFloat() * displayArea.getHeight();
-
-            juce::Path flarePath;
-            flarePath.startNewSubPath (projectedPoints[nodeIdx]);
-
-            // Generate fractal jagged divisions
-            auto startPt = projectedPoints[nodeIdx];
-            for (int step = 1; step <= 3; ++step)
-            {
-                float stepT = static_cast<float> (step) / 3.0f;
-                float nominalX = startPt.x + (targetX - startPt.x) * stepT;
-                float nominalY = startPt.y + (targetY - startPt.y) * stepT;
-
-                // Perpendicular displacement jitter
-                float jitterX = (flareRand.nextFloat() - 0.5f) * 10.0f;
-                float jitterY = (flareRand.nextFloat() - 0.5f) * 10.0f;
-
-                if (step == 3) { jitterX = 0.0f; jitterY = 0.0f; } // Close precisely at the target edge [43]
-
-                flarePath.lineTo (nominalX + jitterX, nominalY + jitterY);
-            }
-
-            // High-voltage double-stroke glow render [43]
-            g.setColour (juce::Colours::white);
-            g.strokePath (flarePath, juce::PathStrokeType (1.0f));
-            g.setColour (activeColor.withAlpha (0.45f));
-            g.strokePath (flarePath, juce::PathStrokeType (3.0f));
-        }
-
+        // =================================────────────────====================
+        // RENDER: HIGHLIGHTS & TITLE HEADERS
         // =====================================================================
-        // RENDER: RIGHT SIDEBAR - METADATA HEADER & COMPACT VU LADDERS [43]
-        // =====================================================================
-        displayArea.removeFromLeft (12.0f); // 12px blank gutter partition between Globe and VU Monitor [43]
-        auto rightArea = displayArea;
+        g.setColour (juce::Colours::white);
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.drawText ("NAVY-ARP MONITOR", displayArea.removeFromTop (16.0f), juce::Justification::centred, true);
 
-        // 1. Draw Metadata Header Box [43]
-        auto headerArea = rightArea.removeFromTop (18.0f);
-        
+        displayArea.removeFromTop (3.0f);
+
         int rootKeyIdx = juce::jlimit (0, 11, static_cast<int> (*processor.apvts.getRawParameterValue (IDs::rootKey.getParamID())));
         juce::StringArray keys { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, scales { "Major", "Natural Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" };
         juce::String keyStr = keys[rootKeyIdx];
@@ -288,30 +245,31 @@ void OledDisplay::paint (juce::Graphics& g)
         juce::String octStr = (rangeShift >= 0 ? "+" : "") + juce::String (rangeShift);
 
         juce::String metaText = "KEY: " + keyStr + " | SCALE: " + scaleStr + " | VOICE: " + voiceStr + " | RATE: " + rateStr + " | OCT: " + octStr;
-
+        
         g.setColour (juce::Colour (0xFFFFB300)); // Gold/Yellow metadata font
-        g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
-        g.drawText (metaText, headerArea, juce::Justification::centred, true);
+        g.setFont (juce::FontOptions (9.5f, juce::Font::bold));
+        g.drawText (metaText, displayArea.removeFromTop (12.0f), juce::Justification::centred, true);
 
-        // 2. Draw 8 Segmented VU Step Ladders [43]
-        rightArea.removeFromTop (4.0f); // Small padding below header
+        // =====================================================================
+        // RENDER: LAYER 3 - RESTORED FULL-WIDTH STEP LEVEL MONITOR (VU) [43]
+        // =====================================================================
+        const float spacing = 6.0f;
+        const float colWidth = (displayArea.getWidth() - (7.0f * spacing)) / 8.0f;
 
-        const float spacing = 4.0f;
-        const float colWidth = (rightArea.getWidth() - (7.0f * spacing)) / 8.0f;
-
-        const int numSegments = 12; // Scaled down to 12 segments to fit beautifully on the side [43]
-        const float segmentHeight = 4.0f; 
-        const float segmentSpacing = 1.5f;
+        const int numSegments = 16;
+        const float segmentHeight = 6.0f;      // Chunky, bold hardware-style LEDs
+        const float segmentSpacing = 2.0f;
         const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing);
 
-        // Center the faders vertically inside the remaining area [43]
-        float fadersY = rightArea.getY() + (rightArea.getHeight() - maxLaddersHeight - 14.0f) * 0.5f;
-        auto laddersArea = juce::Rectangle<float> (rightArea.getX(), fadersY, rightArea.getWidth(), maxLaddersHeight);
+        // Position fader monitor area to sit right above the bottom step numbers
+        float fadersY = bounds.getHeight() - maxLaddersHeight - 24.0f;
+        auto laddersArea = juce::Rectangle<float> (displayArea.getX(), fadersY, displayArea.getWidth(), maxLaddersHeight);
 
         for (int i = 0; i < 8; ++i)
         {
             auto colBounds = laddersArea.removeFromLeft (colWidth);
             
+            // Fetch morphed fader level for this step dynamically
             float faderVal = (processor.sceneA.faders[i] * (1.0f - morphVal)) + (processor.sceneB.faders[i] * morphVal);
             int activeSegments = static_cast<int> (std::round (faderVal * static_cast<float> (numSegments)));
 
@@ -321,11 +279,11 @@ void OledDisplay::paint (juce::Graphics& g)
             for (int seg = 0; seg < numSegments; ++seg)
             {
                 float segY = colBounds.getY() + maxLaddersHeight - ((seg + 1) * (segmentHeight + segmentSpacing));
-                auto segmentRect = juce::Rectangle<float> (colBounds.getX() + 1.0f, segY, colBounds.getWidth() - 2.0f, segmentHeight);
+                auto segmentRect = juce::Rectangle<float> (colBounds.getX() + 2.0f, segY, colBounds.getWidth() - 4.0f, segmentHeight);
 
                 if (seg < activeSegments)
                 {
-                    // Active filled segments [43]
+                    // Active filled segments overlapping the rotating globe [43]
                     if (isActiveStep)
                         g.setColour (juce::Colour (0xFFFF4500)); // Glowing orange-red playhead
                     else
@@ -341,7 +299,7 @@ void OledDisplay::paint (juce::Graphics& g)
             }
 
             // Draw small step number indicator sitting exactly at the bottom screen boundary
-            float textY = colBounds.getY() + maxLaddersHeight + 2.0f;
+            float textY = colBounds.getY() + maxLaddersHeight + 4.0f;
             auto stepNumRect = juce::Rectangle<float> (colBounds.getX(), textY, colBounds.getWidth(), 12.0f);
             
             if (isActiveStep)
@@ -352,7 +310,7 @@ void OledDisplay::paint (juce::Graphics& g)
             else
             {
                 g.setColour (juce::Colours::grey.withAlpha (0.6f));
-                g.setFont (juce::FontOptions (8.5f, juce::Font::plain));
+                g.setFont (juce::FontOptions (9.0f, juce::Font::plain));
             }
 
             g.drawText (juce::String (i + 1), stepNumRect, juce::Justification::centred, true);

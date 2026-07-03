@@ -215,20 +215,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         else ++it;
     }
 
-    // 2. Infinite MIDI Note Leak Hang Fix [43]
-    static bool wasLatchActive = false;
-    if (wasLatchActive && !isLatchActive)
-    {
-        for (int pitch : latchedNotes)
-        {
-            processedMidi.addEvent (juce::MidiMessage::noteOff (1, pitch), 0);
-        }
-        latchedNotes.clear();
-        isFirstNoteOfNewChord = true;
-    }
-    wasLatchActive = isLatchActive;
-
-    if (!isLatchActive) { latchedNotes.clear(); isFirstNoteOfNewChord = true; }
+    if (isLatchActive && latchedNotes.empty() && !activeHeldNotes.empty()) { latchedNotes = activeHeldNotes; isFirstNoteOfNewChord = false; }
 
     for (const auto metadata : midiMessages) {
         auto msg = metadata.getMessage();
@@ -254,42 +241,17 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         int currentRate = isFreezeActive ? frozenRateIdx : activeRateIdx;
         double stepLengthPPQ = (currentRate == 0) ? 1.0 : (currentRate == 1) ? 0.5 : (currentRate == 2) ? 0.25 : 0.125, stepSamples = samplesPerBeat * stepLengthPPQ;
         
-        // 3. Real-Time Swing/Groove 2-Step Period Offset [43]
         float currentMorph = isFreezeActive ? frozenMorph : activeMorph;
-        double swingFraction = 0.33 * currentMorph; // Up to 33% step length delay for classic groove
+        double swingOffset = 0.08 * currentMorph * stepLengthPPQ, triggerThreshold = stepLengthPPQ;
+        if (currentStep % 2 == 1) triggerThreshold += swingOffset;
 
         if (isPlaying) {
-            double swingAmtPPQ = swingFraction * stepLengthPPQ;
-            double periodLengthPPQ = 2.0 * stepLengthPPQ;
-            double ppqNormalized = (mSongPositionPPQ < 0.0) ? 0.0 : mSongPositionPPQ;
-            
-            double positionInPeriod = std::fmod (ppqNormalized, periodLengthPPQ);
-            double periodIndex = std::floor (ppqNormalized / periodLengthPPQ);
-            
-            int stepIndexWithinPeriod = (positionInPeriod >= (stepLengthPPQ + swingAmtPPQ)) ? 1 : 0;
-            int absoluteStepIndex = static_cast<int> (periodIndex) * 2 + stepIndexWithinPeriod;
-            int stepIndex = absoluteStepIndex % 8;
-
-            if (stepIndex != mLastStep) { 
-                mLastStep = stepIndex; 
-                currentStep.store (stepIndex); 
-                stepTriggered = true; 
-            }
+            int stepIndex = static_cast<int> (std::floor (mSongPositionPPQ / stepLengthPPQ)) % 8;
+            if (stepIndex != mLastStep) { mLastStep = stepIndex; currentStep = stepIndex; stepTriggered = true; }
         } else {
-            double swingAmtSamples = swingFraction * stepSamples;
             double activeStepSamples = stepSamples;
-            
-            if (currentStep.load() % 2 == 0) {
-                activeStepSamples += swingAmtSamples;
-            } else {
-                activeStepSamples -= swingAmtSamples;
-            }
-            
-            mTimeInSamples += numSamples; 
-            if (mTimeInSamples >= activeStepSamples) { 
-                mTimeInSamples = 0; 
-                stepTriggered = true; 
-            }
+            if (currentStep % 2 == 0) activeStepSamples *= (1.0 + (swingOffset * 4.0)); else activeStepSamples *= (1.0 - (swingOffset * 4.0));
+            mTimeInSamples += numSamples; if (mTimeInSamples >= activeStepSamples) { mTimeInSamples = 0; stepTriggered = true; }
         }
 
         if (stepTriggered) {
@@ -301,7 +263,6 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             else if (currentEntropy < -0.1f && currentEntropy >= -0.5f) playDirection = 3;
             else if (currentEntropy < -0.5f) playDirection = 4;
 
-            int localStep = currentStep.load();
             static bool goingForward = true;
             if (playDirection == 1) { 
                 if (goingForward) { localStep++; if (localStep >= 7) { localStep = 7; goingForward = false; } }
@@ -559,8 +520,8 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
                         childB->setAttribute ("morph", sceneBPresets[i].rhythmMorph); childB->setAttribute ("rest", sceneBPresets[i].rest); childB->setAttribute ("legato", sceneBPresets[i].legato);
                         childB->setAttribute ("rate", sceneBPresets[i].rate); childB->setAttribute ("entropy", sceneBPresets[i].entropy); childB->setAttribute ("harmony", sceneBPresets[i].harmony);
                         childB->setAttribute ("chaos", sceneBPresets[i].chaos); childB->setAttribute ("octaves", sceneBPresets[i].octaves);
-                        for (int f = 0; f < 8; ++f) childB->setAttribute ("fader_" + juce::String (f), sceneBPresets[i].faders[f]);
-                        for (int l = 0; l < 8; ++l) { childB->setAttribute ("lfo_r_" + juce::String (l), sceneBPresets[i].lfoRates[l]); childB->setAttribute ("lfo_d_" + juce::String (l), sceneBPresets[i].lfoDepths[l]); }
+                        for (int f = 0; f < 8; ++f) childB->setAttribute ("fader_" + juce::String (f), presets[i].faders[f]);
+                        for (int l = 0; l < 8; ++l) { childB->setAttribute ("lfo_r_" + juce::String (l), presets[i].lfoRates[l]); childB->setAttribute ("lfo_d_" + juce::String (l), presets[i].lfoDepths[l]); }
                     }
                 }
             }

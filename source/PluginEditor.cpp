@@ -473,6 +473,11 @@ void PluginEditor::timerCallback()
 
     if (saveButton.isMouseButtonDown() && savePressStartTime != 0 && !saveAlreadySaved) { if (now - savePressStartTime >= 1000) { processor.savePreset (processor.activePresetIndex.load()); saveAlreadySaved = true; saveFlashTimer = 24; saveButton.setToggleState (false, juce::dontSendNotification); saveButton.repaint(); } }
     if (recallButton.isMouseButtonDown() && recallPressStartTime != 0 && !recallAlreadySaved) { if (now - recallPressStartTime >= 1000) { processor.loadPreset (processor.activePresetIndex.load()); recallAlreadySaved = true; recallFlashTimer = 24; recallButton.setToggleState (false, juce::dontSendNotification); recallButton.repaint(); } }
+    if (copyButton.getToggleState() && copySourcePresetIndex != -1) {
+        // Keeps the active copy-source preset slot flashing blue/cyan until destination slot is selected
+        presetFlashTimer[copySourcePresetIndex] = 24;
+        presetFlashType[copySourcePresetIndex] = 2; 
+    }
     if (copyButton.isMouseButtonDown() && copyPressStartTime != 0 && !copyAlreadySaved) { if (now - copyPressStartTime >= 1000) { processor.sceneB = processor.sceneA; processor.hasSceneB = processor.hasSceneA; copyAlreadySaved = true; copyFlashTimer = 24; copyButton.setToggleState (false, juce::dontSendNotification); copyButton.repaint(); } }
     if (initButton.isMouseButtonDown() && initPressStartTime != 0 && !initAlreadySaved) {
         if (now - initPressStartTime >= 1000) {
