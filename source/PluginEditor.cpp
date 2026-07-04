@@ -22,6 +22,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         faders[i]->setLookAndFeel (&chromaLookAndFeel); 
         faders[i]->setComponentID ("fader" + juce::String (i + 1)); 
         addAndMakeVisible (faders[i]);
+        
+        // Hide local labels to show the pre-baked background labels cleanly
         faderLabels[i]->setText ("", juce::dontSendNotification); 
     }
 
@@ -298,7 +300,7 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
                         depthParam->setValueNotifyingHost (depthsList[result - 10]);
                     }
                 });
-                return; // Consume right-click event
+                return; 
             }
         }
     }
@@ -396,7 +398,7 @@ void PluginEditor::resized()
     legatoKnob.setBounds (15, 212, 144, 80);
     rateKnob.setBounds (15, 299, 144, 80);
 
-    // 3. Left Large Master Volume Knob ("mast")
+    // 3. Left Master Volume Knob ("mast")
     masterVelocityKnob.setBounds (15, 410, 144, 140);
 
     // 4. Right sidebar knobs centered over printed backings
@@ -405,7 +407,7 @@ void PluginEditor::resized()
     chaosKnob.setBounds (1082, 212, 144, 80);
     octavesKnob.setBounds (1082, 299, 144, 80);
 
-    // 5. Right Large Master Swing Knob ("mlat")
+    // 5. Right Master Swing Knob ("mlat")
     masterSwingKnob.setBounds (1082, 410, 144, 140);
 
     // 6. Top Row Dropdowns (Aligned inside top bar header slots) [1.1.8]
@@ -447,6 +449,7 @@ void PluginEditor::resized()
     diceNavyButton.setBounds (1155, 620, 68, 38);
 
     // 12. Upfaders (Aligned over precise track centers with thin active bounding) [1.1.8]
+    juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     for (int i = 0; i < 8; ++i) {
         int trackCenter = static_cast<int> (205.0f + static_cast<float> (i) * 118.4f);
         faders[i]->setBounds (trackCenter - 15, 530, 30, 250);
