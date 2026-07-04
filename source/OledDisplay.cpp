@@ -173,9 +173,9 @@ void OledDisplay::paint (juce::Graphics& g)
         };
 
         float globeCenterX = displayArea.getCentreX(); 
-        float globeCenterY = displayArea.getCentreY() - 32.0f; // Shifted up to clear the fader monitor [1.1.8]
-        float globeRadius = displayArea.getHeight() * 0.35f;   // Scaled radius to prevent bezel overlap [1.1.8]
-        float cameraDistance = 2.2f;
+        float globeCenterY = displayArea.getCentreY() - 32.0f; // Shifted up to clear fader monitor space
+        float globeRadius = displayArea.getHeight() * 0.35f;   
+        float cameraDistance = cameraDistance = 2.2f;;
 
         std::vector<juce::Point<float>> projectedPoints;
         for (const auto& v : vertices)
@@ -444,21 +444,21 @@ void OledDisplay::paint (juce::Graphics& g)
         // =====================================================================
         // RENDER: LAYER 3 - STEP LEVEL MONITOR (VU SEGMENTED LADDERS)
         // =====================================================================
-        const float spacing = 10.0f;
-        const float colWidth = (displayArea.getWidth() - (7.0f * spacing)) / 8.0f;
+        const float colWidth = 26.0f; // Thin columns to prevent layout crowding [1.1.8]
 
         const int numSegments = 16;
-        const float segmentHeight = 6.0f;      // Scaled down to prevent overlapping preset row [1.1.8]
-        const float segmentSpacing = 2.0f;     // Scaled spacing [1.1.8]
-        const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); // 126px height [1.1.8]
+        const float segmentHeight = 6.0f;      
+        const float segmentSpacing = 2.0f;     
+        const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); // 126px height
 
-        // Shift up fader monitor area so it sits perfectly inside the shorter OLED bezel [1.1.8]
+        // Position fader monitor area to sit precisely inside the OLED bezel [cite: 43]
         float fadersY = bounds.getHeight() - maxLaddersHeight - 24.0f;
-        auto laddersArea = juce::Rectangle<float> (displayArea.getX(), fadersY, displayArea.getWidth(), maxLaddersHeight);
 
         for (int i = 0; i < 8; ++i)
         {
-            auto colBounds = laddersArea.removeFromLeft (colWidth);
+            // Center each VU column precisely relative to the fader track centers [cite: 43]
+            float relativeCenter = 31.0f + static_cast<float> (i) * 118.4f;
+            auto colBounds = juce::Rectangle<float> (relativeCenter - colWidth * 0.5f, fadersY, colWidth, maxLaddersHeight);
             
             float faderVal = (processor.sceneA.faders[i] * (1.0f - morphVal)) + (processor.sceneB.faders[i] * morphVal);
             int activeSegments = static_cast<int> (std::round (faderVal * static_cast<float> (numSegments)));
@@ -502,8 +502,6 @@ void OledDisplay::paint (juce::Graphics& g)
             }
 
             g.drawText (juce::String (i + 1), stepNumRect, juce::Justification::centred, true);
-
-            laddersArea.removeFromLeft (spacing); 
         }
     }
 }

@@ -94,7 +94,7 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
         }
     }
 
-    // Note: We skip drawing the solid black background ellipse here to let the
+    // Note: We skip drawing the solid background ellipse to let the
     // photorealistic brushed metallic knob asset from the PNG panel show through!
 
     // 4. Draw pointer needle centered over the asset knob
@@ -119,7 +119,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     const bool isDiceButton = (text == "Melo" || text == "Arti" || text == "Time" || text == "Navy");
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
     
-    // Add Latch, Poly, Freeze and default "Seq" to the skip list so they don't double-render
+    // Add Latch, Poly, Freeze and default "Seq" to the skip list so they don't double-render [1.1.8]
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq");
 
     if (isUtilButton || isDiceButton || isPresetButton || isButtonA || isButtonB || isStaticTopButton)
