@@ -172,7 +172,7 @@ void OledDisplay::paint (juce::Graphics& g)
             return { x1, y2, z2 };
         };
 
-        // Center 3D globe vertically inside the upper display area (Y=136px) above the taller VU ladders
+        // Center 3D globe vertically inside the upper display area (Y=136px) above fader ladders
         float globeCenterX = displayArea.getCentreX(); 
         float globeCenterY = displayArea.getY() + 120.0f; 
         float globeRadius = displayArea.getHeight() * 0.28f;   
