@@ -58,23 +58,22 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     float centerY = localBounds.getCentreY();
     
     const bool isMasterKnob = (cid == "masterVelocity" || cid == "masterSwing");
-    float knobRadius = 22.0f;
+    float knobRadius = 16.0f; // Sized tightly for the small knobs to fit your artwork
 
     if (isMasterKnob)
     {
-        // Master knobs have no text boxes underneath and center perfectly in their bounds
         centerY = localBounds.getCentreY();
-        knobRadius = 38.0f; // Sized for the master knobs
+        knobRadius = 35.0f; // Sized for the master knobs
     }
     else
     {
-        // Small knobs offset upwards slightly to sit centered above the dynamic textboxes
         centerY = localBounds.getCentreY() - 7.0f;
-        knobRadius = 22.0f; // Sized for the side knobs
+        knobRadius = 16.0f; 
     }
 
-    float ledRadius = knobRadius + 6.5f;
-    float ledDiameter = isMasterKnob ? 4.0f : 3.0f;
+    // Proportional LED ring spacing to wrap cleanly around small vs giant knob sizes
+    float ledRadius = isMasterKnob ? (knobRadius + 8.5f) : (knobRadius + 5.5f);
+    float ledDiameter = isMasterKnob ? 3.5f : 2.0f;
 
     bool isLeftKnob = (cid == "rhythmMorph" || cid == "rest" || cid == "legato" || cid == "rate" || cid == "masterVelocity");
     juce::Colour activeColor = isLeftKnob ? t.knobFillLeft : t.knobFillRight;
@@ -89,7 +88,7 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
         if (i < litCount)
         {
             // Outer soft radial bloom halo
-            float outerRadius = isMasterKnob ? 6.0f : 4.5f;
+            float outerRadius = isMasterKnob ? 6.0f : 4.0f;
             juce::ColourGradient glow (activeColor.withAlpha (0.6f), ledX, ledY,
                                        activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
                                        true);
@@ -97,14 +96,14 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
             g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
 
             // Bright inner core
-            float innerRadius = isMasterKnob ? 1.8f : 1.2f;
+            float innerRadius = isMasterKnob ? 1.8f : 1.0f;
             g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.2f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
         else
         {
             // Dim inactive LED
-            float innerRadius = 0.8f;
+            float innerRadius = 0.6f;
             g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
@@ -131,8 +130,8 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
 
-    // Skip drawing standard text for buttons that use pre-baked panel lettering or top buttons
-    if (isPresetButton || isStaticTopButton || text == "A" || text == "B")
+    // Skip drawing standard text for buttons that use pre-baked panel lettering (A, B and Preset numbers)
+    if (isPresetButton || text == "A" || text == "B")
     {
         return; 
     }
@@ -141,12 +140,24 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     if (isUtilButton || isDiceButton)
     {
         auto bounds = button.getLocalBounds().toFloat();
-        // Shift text bounding area down slightly to sit under the dynamic LED bar
-        auto textRect = bounds.withTrimmedTop (8.0f);
+        auto textRect = bounds.withTrimmedTop (8.0f); // Shift down to clear the LED indicator bar
 
         g.setColour (button.getToggleState() || button.isDown() || button.isMouseOver() ? juce::Colours::white : juce::Colour (0xFF757575));
         g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.drawFittedText (text, textRect.toNearestInt(), juce::Justification::centred, 1);
+    }
+    else if (isStaticTopButton)
+    {
+        auto bounds = button.getLocalBounds().toFloat();
+
+        // Render top bar buttons (dimmed grey when unlit, glowing cyan/white when active)
+        if (button.getToggleState() || button.isDown())
+            g.setColour (juce::Colour (0xFF00D2FF));
+        else
+            g.setColour (juce::Colour (0xFF555A65));
+
+        g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
+        g.drawFittedText (text, bounds.toNearestInt(), juce::Justification::centred, 1);
     }
 }
 
@@ -184,21 +195,18 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
 
         if (isLit)
         {
-            // Active neon cyan glow
             g.setColour (juce::Colour (0xFF00D2FF));
             g.fillRoundedRectangle (ledRect, 1.0f);
             
-            // Soft radial glow bloom
             g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.4f));
             g.drawRoundedRectangle (ledRect.expanded (1.5f), 1.5f, 0.75f);
         }
         else
         {
-            // Inactive unlit dark-grey slot
             g.setColour (juce::Colour (0xFF181C20));
             g.fillRoundedRectangle (ledRect, 1.0f);
         }
-        return; // Retain transparency on the button body to let the designer's 3D cap show through
+        return; 
     }
 
     // 2. Render background overlays for top-row and preset buttons
@@ -260,17 +268,18 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
 
     if (cid == "morph") // Active Glow Vector Crossfader centerpiece
     {
-        const float trackHeight = 3.0f;
+        // Thicker indicator strip (6.0px) for visibility inside the horizontal fader strip artwork
+        const float trackHeight = 6.0f;
         const float trackY = static_cast<float>(y) + (static_cast<float>(height) - trackHeight) * 0.5f;
 
         float progress = sliderPos / static_cast<float>(width);
         float alphaA = 1.0f - progress;
-        g.setColour (t.crossfaderTrackA.withAlpha (alphaA * 0.5f + 0.1f));
-        g.fillRoundedRectangle (static_cast<float>(x), trackY, sliderPos - static_cast<float>(x), trackHeight, 1.5f);
+        g.setColour (t.crossfaderTrackA.withAlpha (alphaA * 0.6f + 0.15f));
+        g.fillRoundedRectangle (static_cast<float>(x), trackY, sliderPos - static_cast<float>(x), trackHeight, 3.0f);
 
         float alphaB = progress;
-        g.setColour (t.crossfaderTrackB.withAlpha (alphaB * 0.5f + 0.1f));
-        g.fillRoundedRectangle (sliderPos, trackY, static_cast<float>(x + width) - sliderPos, trackHeight, 1.5f);
+        g.setColour (t.crossfaderTrackB.withAlpha (alphaB * 0.6f + 0.15f));
+        g.fillRoundedRectangle (sliderPos, trackY, static_cast<float>(x + width) - sliderPos, trackHeight, 3.0f);
 
         // Render beveled horizontal crossfader handle matching vertical ones
         const float thumbWidth = 22.0f;
@@ -289,7 +298,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         g.setGradientFill (silverBody);
         g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f);
 
-        // Inner beveled highlights
+        // 3D Bevel Highlight
         g.setColour (juce::Colours::white.withAlpha (0.7f));
         g.drawRoundedRectangle (thumbX + 0.5f, thumbY + 0.5f, thumbWidth - 1.0f, thumbHeight - 1.0f, 2.0f, 1.0f);
         g.setColour (juce::Colour (0xFF37474F).withAlpha (0.4f));
@@ -342,7 +351,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         g.fillRect (grooveX, grooveY, grooveWidth, grooveHeight);
 
         g.setColour (juce::Colours::white.withAlpha (0.4f));
-        g.fillRect (grooveX, grooveY + grooveHeight, grooveWidth, 1.0f);
+        g.fillRect (grooveX + grooveWidth, grooveY, 1.0f, grooveHeight);
     }
     else
     {
@@ -361,12 +370,13 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
 
 void ChromaCapsLookAndFeel::drawLabel (juce::Graphics& g, juce::Label& label)
 {
-    // Draw solid dark background over text boxes to block out any background artifact peeking
+    // Fill the background to cover pre-baked text
     g.fillAll (label.findColour (juce::Label::backgroundColourId));
 
+    // Set up font and alignment
     g.setFont (label.getFont());
     g.setColour (label.findColour (juce::Label::textColourId));
-
+    
     auto textArea = label.getBorderSize().subtractedFrom (label.getLocalBounds());
     g.drawFittedText (label.getText(), textArea.getX(), textArea.getY(), 
                       textArea.getWidth(), textArea.getHeight(), 

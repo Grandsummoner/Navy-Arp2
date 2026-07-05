@@ -1,3 +1,5 @@
+#define DRAW_DIAGNOSTIC_GRID 1  // Set to 0 to hide the diagnostic grid and mouse tracker
+
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "OledDisplay.h"
@@ -51,7 +53,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         rightTitles[i]->setText ("", juce::dontSendNotification); 
     }
 
-    // Initialize Left Master Knob (mast) - No textbox, centered dynamically in LookAndFeel
+    // Initialize Left Master Knob (mast)
     masterVelocityKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     masterVelocityKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     masterVelocityKnob.setLookAndFeel (&chromaLookAndFeel);
@@ -60,7 +62,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (masterVelocityKnob);
     masterVelocityTitle.setText ("", juce::dontSendNotification);
 
-    // Initialize Right Master Knob (mlart) - No textbox, centered dynamically in LookAndFeel
+    // Initialize Right Master Knob (mlart)
     masterSwingKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     masterSwingKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     masterSwingKnob.setLookAndFeel (&chromaLookAndFeel);
@@ -216,7 +218,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     updateSliderTextBoxThemeColors();
 
     setResizable (false, false); 
-    setSize (1000, 680); // Set standard logical canvas dimensions
+    setSize (1000, 680); 
+
+    // Enable mouse tracking for coordinates if diagnostic overlay is active
+    if (DRAW_DIAGNOSTIC_GRID)
+        setMouseClickGrabsKeyboardFocus (true);
+
     startTimerHz (30);
 }
 
@@ -369,6 +376,7 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
 
 void PluginEditor::paint (juce::Graphics& g)
 {
+    // 1. Draw static faceplate background
     if (backgroundImage.isValid())
     {
         g.drawImage (backgroundImage, getLocalBounds().toFloat(), 
@@ -377,6 +385,56 @@ void PluginEditor::paint (juce::Graphics& g)
     else
     {
         g.fillAll (juce::Colour (0xFF0D1E36));
+    }
+
+    // 2. Render toggleable diagnostic overlay grid and real-time mouse position [1.1.8]
+    if (DRAW_DIAGNOSTIC_GRID)
+    {
+        const int width = getWidth();
+        const int height = getHeight();
+
+        // Draw 50px vertical grid lines (Cyan/Blue tint)
+        for (int x = 50; x < width; x += 50)
+        {
+            g.setColour (juce::Colour (0x4400E1FF));
+            g.drawVerticalLine (x, 0.0f, static_cast<float> (height));
+            
+            g.setColour (juce::Colour (0xBB00E1FF));
+            g.setFont (juce::FontOptions (9.0f));
+            g.drawText (juce::String (x), x - 12, height - 12, 24, 10, juce::Justification::centred);
+        }
+
+        // Draw 50px horizontal grid lines (Pink/Red tint)
+        for (int y = 50; y < height; y += 50)
+        {
+            g.setColour (juce::Colour (0x44FF3366));
+            g.drawHorizontalLine (y, 0.0f, static_cast<float> (width));
+            
+            g.setColour (juce::Colour (0xBBFF3366));
+            g.setFont (juce::FontOptions (9.0f));
+            g.drawText (juce::String (y), 4, y - 5, 24, 10, juce::Justification::left);
+        }
+
+        // Track and render current mouse coordinates
+        auto mousePos = getMouseXYRelative();
+        if (mousePos.x >= 0 && mousePos.x <= width && mousePos.y >= 0 && mousePos.y <= height)
+        {
+            // Draw crosshair at cursor
+            g.setColour (juce::Colours::yellow.withAlpha (0.5f));
+            g.drawVerticalLine (mousePos.x, 0.0f, static_cast<float> (height));
+            g.drawHorizontalLine (mousePos.y, 0.0f, static_cast<float> (width));
+
+            // Draw floating coordinate info bubble
+            g.setColour (juce::Colours::black.withAlpha (0.85f));
+            g.fillRoundedRectangle (static_cast<float> (mousePos.x) + 12.0f, static_cast<float> (mousePos.y) + 12.0f, 65.0f, 20.0f, 3.0f);
+            
+            g.setColour (juce::Colours::yellow);
+            g.drawRoundedRectangle (static_cast<float> (mousePos.x) + 12.0f, static_cast<float> (mousePos.y) + 12.0f, 65.0f, 20.0f, 3.0f, 1.0f);
+            g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
+            
+            juce::String coordStr = juce::String (mousePos.x) + ", " + juce::String (mousePos.y);
+            g.drawText (coordStr, mousePos.x + 12, mousePos.y + 12, 65, 20, juce::Justification::centred);
+        }
     }
 }
 
@@ -537,6 +595,10 @@ void PluginEditor::timerCallback()
             initAlreadySaved = true; initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint();
         }
     }
+
+    // Force editor to repaint during diagnostics so crosshairs track mouse updates
+    if (DRAW_DIAGNOSTIC_GRID)
+        repaint();
 
     oledDisplay.repaint();
 }
