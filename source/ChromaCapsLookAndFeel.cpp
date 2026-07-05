@@ -94,7 +94,7 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
         }
     }
 
-    // Note: We skip drawing the solid background ellipse here to let the
+    // Note: We skip drawing the solid background ellipse to let the
     // photorealistic brushed metallic knob asset from the PNG panel show through!
 
     // 4. Draw pointer needle centered over the asset knob
@@ -127,7 +127,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         return; 
     }
 
-    // If the sequencer toggles to "Arp", render it cleanly in C++
+    // If the sequencer toggles to "Arp", render it cleanly in C++ [1.1.8]
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
     
     if (button.getToggleState())

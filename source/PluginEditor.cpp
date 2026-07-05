@@ -53,7 +53,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         rightTitles[i]->setText ("", juce::dontSendNotification); 
     }
 
-    // Initialize Left Master Knob
+    // Initialize Left Master Knob (Mast)
     masterVelocityKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     masterVelocityKnob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 55, 14);
     masterVelocityKnob.setLookAndFeel (&chromaLookAndFeel);
@@ -62,7 +62,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (masterVelocityKnob);
     masterVelocityTitle.setText ("", juce::dontSendNotification);
 
-    // Initialize Right Master Knob
+    // Initialize Right Master Knob (Mlart)
     masterSwingKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     masterSwingKnob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 55, 14);
     masterSwingKnob.setLookAndFeel (&chromaLookAndFeel);
@@ -371,6 +371,7 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
 
 void PluginEditor::paint (juce::Graphics& g)
 {
+    // Draw the static skeuomorphic background PNG panel
     if (backgroundImage.isValid())
     {
         g.drawImage (backgroundImage, getLocalBounds().toFloat(), 
@@ -380,50 +381,23 @@ void PluginEditor::paint (juce::Graphics& g)
     {
         g.fillAll (juce::Colour (0xFF0D1E36));
     }
-
-    // TEMPORARY DEBUG COORD GRID OVERLAY (Draws thin ruler on screen) [1.1.8]
-    g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.setFont (10.0f);
-
-    // Draw vertical lines every 50 pixels
-    for (int x = 50; x < getWidth(); x += 50)
-    {
-        g.drawVerticalLine (x, 0.0f, (float)getHeight());
-        if (x % 100 == 0)
-        {
-            g.setColour (juce::Colours::cyan.withAlpha (0.6f));
-            g.drawText (juce::String (x), x - 15, 5, 30, 15, juce::Justification::centred);
-            g.setColour (juce::Colours::white.withAlpha (0.12f));
-        }
-    }
-
-    // Draw horizontal lines every 50 pixels
-    for (int y = 50; y < getHeight(); y += 50)
-    {
-        g.drawHorizontalLine (y, 0.0f, (float)getWidth());
-        if (y % 100 == 0)
-        {
-            g.setColour (juce::Colours::cyan.withAlpha (0.6f));
-            g.drawText (juce::String (y), 5, y - 7, 30, 15, juce::Justification::centred);
-            g.setColour (juce::Colours::white.withAlpha (0.12f));
-        }
-    }
+    
+    // Note: Temporary pixel coordinate grid has been completely removed to render your beautiful faceplate cleanly!
 }
 
 void PluginEditor::resized()
 {
-    // Precision structural bounds coordinate maps [1.1.8]
+    // Mapped bounds coordinate layout [1.1.8]
     
     // 1. OLED Display screen fits inside the real screen bezel artwork area [1.1.8]
     oledDisplay.setBounds (180, 90, 880, 420);
 
-    // 2. Left side knobs centered over printed backings (Centers: Y = 110, 220, 330, 440, and 600) [1.1.8]
+    // 2. Left side knobs centered over printed backings at exact uniform Y centers (110, 220, 330, 440, 600) [1.1.8]
+    // Top-left Morph sits at Y=65 (center 110), Rest at Y=175 (center 220), Legato at Y=285 (center 330), Rate at Y=395 (center 440), Mast at Y=555 (center 600)
     rhythmMorphKnob.setBounds (20, 65, 110, 90);
     restKnob.setBounds (20, 175, 110, 90);
     legatoKnob.setBounds (20, 285, 110, 90);
     rateKnob.setBounds (20, 395, 110, 90);
-    
-    // Master velocity knob centered at Y = 600
     masterVelocityKnob.setBounds (20, 555, 110, 90);
 
     // 3. Right side knobs centered over printed backings (Centers: Y = 110, 220, 330, 440, and 600) [1.1.8]
@@ -431,8 +405,6 @@ void PluginEditor::resized()
     harmonyKnob.setBounds (1111, 175, 110, 90);
     chaosKnob.setBounds (1111, 285, 110, 90);
     octavesKnob.setBounds (1111, 395, 110, 90);
-    
-    // Master swing knob centered at Y = 600
     masterSwingKnob.setBounds (1111, 555, 110, 90);
 
     // 4. Top Row Dropdowns (Aligned inside top bar header slots) [1.1.8]
@@ -441,7 +413,7 @@ void PluginEditor::resized()
     cycleLengthBox.setBounds (400, 20, 105, 24);
     panelThemeBox.setBounds (510, 20, 105, 24); 
     
-    // 5. Top Row Performance buttons shifted down [1.1.8]
+    // 5. Top Row Performance buttons [1.1.8]
     latchButton.setBounds (625, 20, 105, 24); 
     arpSeqButton.setBounds (735, 20, 105, 24); 
     polyButton.setBounds (845, 20, 105, 24); 

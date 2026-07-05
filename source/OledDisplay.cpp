@@ -447,12 +447,12 @@ void OledDisplay::paint (juce::Graphics& g)
         const float colWidth = 26.0f; // Thin columns to prevent layout crowding [1.1.8]
 
         const int numSegments = 16;
-        const float segmentHeight = 8.0f;      // Scaled up for higher resolution on the taller screen [1.1.8]
-        const float segmentSpacing = 3.0f;     // Increased spacing [1.1.8]
-        const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); // 173px height [1.1.8]
+        const float segmentHeight = 6.0f;      
+        const float segmentSpacing = 2.0f;     
+        const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); // 126px height
 
-        // Anchor the fader monitoring ladders exactly inside the lower portion of the OLED screen bezel [cite: 43]
-        float fadersY = bounds.getHeight() - maxLaddersHeight - 40.0f; // 437px absolute Y position [1.1.8]
+        // Position fader monitor area to sit inside the lower portion of the OLED screen bezel [cite: 43]
+        float fadersY = bounds.getHeight() - maxLaddersHeight - 20.0f; // 274px absolute Y position [1.1.8]
 
         for (int i = 0; i < 8; ++i)
         {
