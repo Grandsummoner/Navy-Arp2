@@ -26,7 +26,8 @@ juce::Slider::SliderLayout ChromaCapsLookAndFeel::getSliderLayout (juce::Slider&
     }
     else
     {
-        // For 116px tall small knobs, allocate top 86px to the dial and bottom 26px to the textbox (with a 4px gap)
+        // Small knobs total height is 116.
+        // Allocate top 86px to the dial and bottom 26px to the textbox (with a 4px gap)
         layout.sliderBounds = juce::Rectangle<int> (0, 0, localBounds.getWidth(), 86);
         layout.textBoxBounds = juce::Rectangle<int> (0, 90, localBounds.getWidth(), 26);
     }
@@ -79,33 +80,33 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     float centerY = localBounds.getCentreY();
     
     const bool isMasterKnob = (cid == "masterVelocity" || cid == "masterSwing");
-    float knobRadius = 24.0f; // Sized exactly for the physical small knobs in your HD panel asset
+    float knobRadius = 24.0f; // Sized exactly for the small knobs at 1521x1034 resolution
 
     if (isMasterKnob)
     {
-        // Dial centers mapped to exact pixel alignment coordinates
+        // Centers mapped to the exact coordinate readings measured from your background
         if (cid == "masterVelocity")
         {
-            centerX = 70.0f - static_cast<float> (slider.getX());
-            centerY = 640.0f - static_cast<float> (slider.getY());
+            centerX = 121.5f - static_cast<float> (slider.getX());
+            centerY = 652.0f - static_cast<float> (slider.getY());
         }
         else // masterSwing
         {
-            centerX = 1451.0f - static_cast<float> (slider.getX());
-            centerY = 640.0f - static_cast<float> (slider.getY());
+            centerX = 1399.5f - static_cast<float> (slider.getX());
+            centerY = 652.0f - static_cast<float> (slider.getY());
         }
-        knobRadius = 50.0f; // Sized for physical big master knobs
+        knobRadius = 50.0f; // Sized for the big master master velocity/swing knobs
     }
     else
     {
-        // Small knobs centered in the 86px dial sub-region
+        // Small knobs utilize the full component vertical center of the 86px rotary layout
         centerY = 43.0f;
         knobRadius = 24.0f; 
     }
 
-    // Symmetrical LED rings centered precisely around the dial asset bounds
-    float ledRadius = isMasterKnob ? (knobRadius + 12.0f) : (knobRadius + 9.0f);
-    float ledDiameter = isMasterKnob ? 5.5f : 3.5f;
+    // Symmetrical LED rings tightly wrapped to your knob caps
+    float ledRadius = isMasterKnob ? (knobRadius + 12.0f) : (knobRadius + 8.5f);
+    float ledDiameter = isMasterKnob ? 5.0f : 3.0f;
 
     bool isLeftKnob = (cid == "rhythmMorph" || cid == "rest" || cid == "legato" || cid == "rate" || cid == "masterVelocity");
     juce::Colour activeColor = isLeftKnob ? t.knobFillLeft : t.knobFillRight;
@@ -119,26 +120,26 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
 
         if (i < litCount)
         {
-            float outerRadius = isMasterKnob ? 8.5f : 5.0f;
+            float outerRadius = isMasterKnob ? 8.5f : 4.5f;
             juce::ColourGradient glow (activeColor.withAlpha (0.6f), ledX, ledY,
                                        activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
                                        true);
             g.setGradientFill (glow);
             g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
 
-            float innerRadius = isMasterKnob ? 2.8f : 1.5f;
+            float innerRadius = isMasterKnob ? 2.5f : 1.2f;
             g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.2f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
         else
         {
-            float innerRadius = 1.0f;
+            float innerRadius = 0.8f;
             g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
     }
 
-    // 4. Draw indicator needle centered over the asset knob
+    // 4. Draw pointer needle centered over the asset knob
     float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
     juce::Path path;
     float pointerThickness = isMasterKnob ? 3.5f : 2.0f;
@@ -168,10 +169,10 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     if (isUtilButton || isDiceButton)
     {
         auto bounds = button.getLocalBounds().toFloat();
-        auto textRect = bounds.withTrimmedTop (10.0f); // Shift down to clear the LED indicator bar
+        auto textRect = bounds.withTrimmedTop (8.0f); // Shift down to clear the LED indicator bar
 
         g.setColour (button.getToggleState() || button.isDown() || button.isMouseOver() ? juce::Colours::white : juce::Colour (0xFF757575));
-        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.drawFittedText (text, textRect.toNearestInt(), juce::Justification::centred, 1);
     }
     else if (isStaticTopButton)
@@ -200,7 +201,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         else
             g.setColour (juce::Colour (0xFF757575)); // Inactive Grey
             
-        g.setFont (juce::FontOptions (15.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
         g.drawFittedText (text, textRect.toNearestInt(), juce::Justification::centred, 1);
     }
 }
@@ -343,8 +344,8 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         g.fillRoundedRectangle (sliderPos, trackY, static_cast<float>(x + width) - sliderPos, trackHeight, 3.0f);
 
         // Render horizontal metallic crossfader cap
-        const float thumbWidth = 24.0f;
-        const float thumbHeight = 20.0f;
+        const float thumbWidth = 22.0f;
+        const float thumbHeight = 18.0f;
         const float thumbX = sliderPos - (thumbWidth * 0.5f);
         const float thumbY = static_cast<float>(y) + (static_cast<float>(height) - thumbHeight) * 0.5f;
 
@@ -384,7 +385,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         const float thumbWidth = 26.0f;
         const float thumbX = static_cast<float>(x) + (static_cast<float>(width) - thumbWidth) * 0.5f;
         
-        // Exact travel restriction to sit between top dot (Y=19) and bottom dot (Y=102) of vertical tracks
+        // Exact travel restriction to sit between top dot (Y=19) and bottom dot (Y=102) of fader tracks
         float travelRange = maxSliderPos - minSliderPos;
         float progress = (sliderPos - minSliderPos) / (travelRange > 0.0f ? travelRange : 1.0f);
         

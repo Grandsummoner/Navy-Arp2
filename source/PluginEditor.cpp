@@ -450,63 +450,63 @@ void PluginEditor::resized()
     // 1. OLED Display screen bezel (exact bounding box from image corners)
     oledDisplay.setBounds (243, 91, 1035, 487);
 
-    // 2. Left sidebar 2x2 grid (aligned to dot centers: X=49, 91 and Y=101, 154)
-    saveButton.setBounds (28, 80, 42, 42); 
-    recallButton.setBounds (70, 80, 42, 42); 
-    copyButton.setBounds (28, 133, 42, 42); 
-    initButton.setBounds (70, 133, 42, 42);
+    // 2. Left sidebar 2x2 grid (aligned to physical centers: X=96, 147 and Y=100, 155)
+    saveButton.setBounds (73, 82, 46, 36); 
+    recallButton.setBounds (124, 82, 46, 36); 
+    copyButton.setBounds (73, 137, 46, 36); 
+    initButton.setBounds (124, 137, 46, 36);
 
-    // 3. Left sidebar small knobs (centers at X=70, stacked mathematically back-to-back from Y=170 to 511)
-    rhythmMorphKnob.setBounds (20, 170, 100, 86);
-    restKnob.setBounds (20, 255, 100, 86);
-    legatoKnob.setBounds (20, 340, 100, 86);
-    rateKnob.setBounds (20, 425, 100, 86);
+    // 3. Left sidebar small knobs (centers at X=121.5, Y=232, 322, 412, 502. Height=116 allows textbox below slot indicator)
+    rhythmMorphKnob.setBounds (71, 189, 100, 116);
+    restKnob.setBounds (71, 279, 100, 116);
+    legatoKnob.setBounds (71, 369, 100, 116);
+    rateKnob.setBounds (71, 459, 100, 116);
 
-    // 4. Left Master Knob sitting exactly on its dial center (Center: X=70, Y=640)
-    masterVelocityKnob.setBounds (0, 570, 140, 140);
+    // 4. Left Master Knob sitting exactly on its dial center (Center: X=121.5, Y=652)
+    masterVelocityKnob.setBounds (51, 582, 140, 140);
 
-    // 5. Right sidebar 2x2 grid (perfect symmetry to left)
-    diceMeloButton.setBounds (1409, 80, 42, 42); 
-    diceArtiButton.setBounds (1451, 80, 42, 42); 
-    diceTimeButton.setBounds (1409, 133, 42, 42); 
-    diceNavyButton.setBounds (1451, 133, 42, 42);
+    // 5. Right sidebar 2x2 grid (perfect symmetry to left, centers X=1374, 1425 and Y=100, 155)
+    diceMeloButton.setBounds (1351, 82, 46, 36); 
+    diceArtiButton.setBounds (1402, 82, 46, 36); 
+    diceTimeButton.setBounds (1351, 137, 46, 36); 
+    diceNavyButton.setBounds (1402, 137, 46, 36);
 
-    // 6. Right sidebar small knobs centered exactly on dials (perfect symmetry to left)
-    entropyKnob.setBounds (1401, 170, 100, 86);
-    harmonyKnob.setBounds (1401, 255, 100, 86);
-    chaosKnob.setBounds (1401, 340, 100, 86);
-    octavesKnob.setBounds (1401, 425, 100, 86);
+    // 6. Right sidebar small knobs centered exactly on dials (perfect symmetry to left, centers X=1399.5)
+    entropyKnob.setBounds (1349, 189, 100, 116);
+    harmonyKnob.setBounds (1349, 279, 100, 116);
+    chaosKnob.setBounds (1349, 369, 100, 116);
+    octavesKnob.setBounds (1349, 459, 100, 116);
 
-    // 7. Right Master Knob sitting exactly on its dial center (Center: X=1451, Y=640)
-    masterSwingKnob.setBounds (1381, 570, 140, 140);
+    // 7. Right Master Knob sitting exactly on its dial center (Center: X=1399.5, Y=652)
+    masterSwingKnob.setBounds (1329, 582, 140, 140);
 
-    // 8. Top Row Dropdowns (aligned perfectly inside physical cuts, center Y=38, width 64, height 22)
-    rootKeyBox.setBounds (161, 27, 64, 22); 
-    scaleTypeBox.setBounds (232, 27, 64, 22); 
-    cycleLengthBox.setBounds (303, 27, 64, 22);
-    panelThemeBox.setBounds (374, 27, 64, 22); 
+    // 8. Top Row Dropdowns (perfectly aligned with slots: width 100, height 36, center Y=44)
+    rootKeyBox.setBounds (243, 26, 100, 36); 
+    scaleTypeBox.setBounds (348, 26, 100, 36); 
+    cycleLengthBox.setBounds (453, 26, 100, 36);
+    panelThemeBox.setBounds (558, 26, 100, 36); 
     
-    // 9. Top Row Performance buttons (aligned inside physical cuts, center Y=38, width 64, height 22)
-    latchButton.setBounds (1083, 27, 64, 22); 
-    arpSeqButton.setBounds (1154, 27, 64, 22); 
-    polyButton.setBounds (1225, 27, 64, 22); 
-    freezeButton.setBounds (1296, 27, 64, 22);
+    // 9. Top Row Performance buttons (perfectly aligned with slots: width 100, height 36, center Y=44)
+    latchButton.setBounds (863, 26, 100, 36); 
+    arpSeqButton.setBounds (968, 26, 100, 36); 
+    polyButton.setBounds (1073, 26, 100, 36); 
+    freezeButton.setBounds (1178, 26, 100, 36);
 
-    // 10. Horizontal Crossfader Row restricted between Button A and B (centers at Y=640)
-    sceneAButton.setBounds (224, 612, 56, 56);
-    morphCrossfader.setBounds (354, 620, 813, 40);
-    sceneBButton.setBounds (1241, 612, 56, 56);
+    // 10. Horizontal Crossfader Row restricted between Button A and B (centers at Y=652)
+    sceneAButton.setBounds (292, 624, 56, 56);
+    morphCrossfader.setBounds (490, 632, 541, 40);
+    sceneBButton.setBounds (1173, 624, 56, 56);
 
-    // 11. Bottom Matrix Column Alignment (using precise track centers with fader tracks from Y=897 to 980)
-    const float trackCenters[8] = { 117.0f, 301.0f, 485.0f, 669.0f, 852.0f, 1036.0f, 1220.0f, 1404.0f };
+    // 11. Bottom Matrix Column Alignment (spaced evenly between centerpoints X=121.5 and X=1399.5)
+    const float trackCenters[8] = { 121.5f, 304.0f, 487.0f, 669.0f, 852.0f, 1034.0f, 1217.0f, 1399.5f };
     for (int i = 0; i < 8; ++i) 
     {
         // Preset Matrix Switches centered over their vertical track paths
-        presetButtons[i].setBounds (static_cast<int> (trackCenters[i]) - 32, 748, 64, 64);
+        presetButtons[i].setBounds (static_cast<int> (trackCenters[i]) - 32, 730, 64, 64);
 
-        // Upfaders aligned with fader slot tracks (travel Y limit center = 938.5)
+        // Upfaders aligned with fader slot tracks (travel Y limit center = 934.5)
         juce::Slider* faderPtrs[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
-        faderPtrs[i]->setBounds (static_cast<int> (trackCenters[i]) - 15, 878, 30, 120);
+        faderPtrs[i]->setBounds (static_cast<int> (trackCenters[i]) - 15, 874, 30, 120);
     }
 }
 

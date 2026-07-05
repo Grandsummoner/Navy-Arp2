@@ -455,12 +455,14 @@ void OledDisplay::paint (juce::Graphics& g)
         // Sits dynamically inside the lower portion of the OLED screen bezel (Y=289px to 462px)
         float fadersY = bounds.getHeight() - maxLaddersHeight - 25.0f; 
 
+        // Symmetrical, even spacing mapped inside the wider 1035px screen bounds
+        // These relative centers correspond exactly to the track centers in the editor layout: 
+        // 304, 487, 669, 852, 1034, 1217 (after subtracting screen left offset 243)
+        const float relativeCenters[8] = { 61.0f, 244.0f, 426.0f, 609.0f, 791.0f, 974.0f, 1157.0f, 1340.0f };
+
         for (int i = 0; i < 8; ++i)
         {
-            // Symmetrical, even spacing mapped inside the wider 1035px screen bounds
-            float startX = 60.0f;
-            float spacing = (bounds.getWidth() - 2.0f * startX) / 7.0f;
-            float relativeCenter = startX + static_cast<float> (i) * spacing;
+            float relativeCenter = relativeCenters[i];
             auto colBounds = juce::Rectangle<float> (relativeCenter - colWidth * 0.5f, fadersY, colWidth, maxLaddersHeight);
             
             float faderVal = (processor.sceneA.faders[i] * (1.0f - morphVal)) + (processor.sceneB.faders[i] * morphVal);
