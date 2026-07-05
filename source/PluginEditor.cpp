@@ -218,7 +218,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     updateSliderTextBoxThemeColors();
 
     setResizable (false, false); 
-    setSize (1521, 1034); 
+    setSize (1521, 1034); // Scaled up to perfectly match your target panel dimensions
 
     if (DRAW_DIAGNOSTIC_GRID)
         setMouseClickGrabsKeyboardFocus (true);
@@ -375,7 +375,7 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
 
 void PluginEditor::paint (juce::Graphics& g)
 {
-    // Draw static faceplate background
+    // 1. Draw static faceplate background
     if (backgroundImage.isValid())
     {
         g.drawImage (backgroundImage, getLocalBounds().toFloat(), 
@@ -459,7 +459,7 @@ void PluginEditor::resized()
     copyButton.setBounds (32, 79, 45, 30); 
     initButton.setBounds (75, 79, 45, 30);
 
-    // 3. Left sidebar small knobs centered exactly on dials (Centers: X=73.5, Y=145.5, 208.0, 270.5, 333.0)
+    // 3. Left sidebar small knobs centered exactly on dials (Centers: X=73.5, Y=145.5, 208, 270.5, 333)
     // Sized to 111x70, giving them 7px TextBoxBelow height offset alignment
     rhythmMorphKnob.setBounds (18, 110, 111, 70);
     restKnob.setBounds (18, 173, 111, 70);
@@ -599,6 +599,10 @@ void PluginEditor::timerCallback()
         presetFlashType[copySourcePresetIndex] = 2; 
     }
     if (copyButton.isMouseButtonDown() && copyPressStartTime != 0 && !copyAlreadySaved) { if (now - copyPressStartTime >= 1000) { processor.sceneB = processor.sceneA; processor.hasSceneB = processor.hasSceneA; copyAlreadySaved = true; copyFlashTimer = 24; copyButton.setToggleState (false, juce::dontSendNotification); copyButton.repaint(); } }
+    if (initButton.getToggleState() && copySourcePresetIndex != -1) {
+        presetFlashTimer[copySourcePresetIndex] = 24;
+        presetFlashType[copySourcePresetIndex] = 2; 
+    }
     if (initButton.isMouseButtonDown() && initPressStartTime != 0 && !initAlreadySaved) {
         if (now - initPressStartTime >= 1000) {
             for (auto* param : processor.getParameters()) { if (param != nullptr) param->setValueNotifyingHost (param->getDefaultValue()); }
