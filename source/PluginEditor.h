@@ -16,6 +16,13 @@ public:
 
     //==============================================================================
     void paint (juce::Graphics&) override;
+    
+    // Renders the coordinate grid on top of all child components (OLED, sliders, buttons) [3]
+    void paintOverChildren (juce::Graphics& g) override;
+    
+    // Tracks real-time cursor coordinates
+    void mouseMove (const juce::MouseEvent& event) override;
+    
     void resized() override;
 
     void parameterChanged (const juce::String& parameterID, float newValue) override;
@@ -89,7 +96,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> masterVelocityAttachment, masterSwingAttachment;
 
     // Toggle Attachments
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> latchAttachment, arpSeqAttachment, polyAttachment, freezeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> latchAttachment, arpSeqAttachment, polyButtonAttachment, freezeButtonAttachment;
 
     // Dropdown Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rootKeyAttachment, scaleTypeAttachment, cycleLengthAttachment, panelThemeAttachment;
@@ -114,7 +121,7 @@ private:
     bool sceneAAlreadySaved = false;
 
     std::uint32_t sceneBPressStartTime = 0;
-    bool sceneBAlreadySaved = false;
+    bool sceneBActiveState = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };

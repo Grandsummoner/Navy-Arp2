@@ -12,6 +12,20 @@ ChromaCapsLookAndFeel::~ChromaCapsLookAndFeel()
 {
 }
 
+juce::Slider::SliderLayout ChromaCapsLookAndFeel::getSliderLayout (juce::Slider& slider)
+{
+    juce::Slider::SliderLayout layout;
+    auto localBounds = slider.getLocalBounds();
+    
+    // Allow the rotary slider to occupy the full bounds so its center remains exactly at the component's geometric center
+    layout.sliderBounds = localBounds;
+    
+    // Position the textbox in the bottom 14px of the component bounds
+    layout.textBoxBounds = juce::Rectangle<int> (0, localBounds.getHeight() - 14, localBounds.getWidth(), 14);
+    
+    return layout;
+}
+
 void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                                               float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                                               juce::Slider& slider)
@@ -61,11 +75,22 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
 
     if (isMasterKnob)
     {
-        centerY = localBounds.getCentreY();
-        knobRadius = 35.0f; // Sized for the master knobs
+        // Enforce the exact pixel coordinates measured from your diagnostic screenshots
+        if (cid == "masterVelocity")
+        {
+            centerX = 73.0f - static_cast<float> (slider.getX());
+            centerY = 438.0f - static_cast<float> (slider.getY());
+        }
+        else // masterSwing
+        {
+            centerX = 927.0f - static_cast<float> (slider.getX());
+            centerY = 440.0f - static_cast<float> (slider.getY());
+        }
+        knobRadius = 35.0f; // Master knob vector size
     }
     else
     {
+        // Small knobs utilize the getSliderLayout center line
         centerY = localBounds.getCentreY() - 7.0f;
         knobRadius = 14.0f; 
     }
@@ -126,7 +151,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
 
-    if (isPresetButton || text == "A" || text == "B")
+    if (isPresetButton)
     {
         return; 
     }
@@ -149,10 +174,25 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         if (button.getToggleState() || button.isDown())
             g.setColour (juce::Colour (0xFF00D2FF));
         else
-            g.setColour (juce::Colour (0xFF555A65));
+            g.setColour (juce::Colour (0xFF888F9D)); // Upgraded from 0xFF555A65 for legibility
 
         g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.drawFittedText (text, bounds.toNearestInt(), juce::Justification::centred, 1);
+    }
+    else if (text == "A" || text == "B")
+    {
+        // Highlight active scene letter dynamically on the button cap
+        bool isSceneActive = false;
+        if (text == "A") isSceneActive = !processor.isSceneBActive();
+        else if (text == "B") isSceneActive = processor.isSceneBActive();
+        
+        if (isSceneActive || button.isDown())
+            g.setColour (juce::Colour (0xFF00D2FF)); // Glowing Active Cyan
+        else
+            g.setColour (juce::Colour (0xFF757575)); // Inactive Grey
+            
+        g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
+        g.drawFittedText (text, button.getLocalBounds(), juce::Justification::centred, 1);
     }
 }
 
@@ -204,13 +244,29 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         return; 
     }
 
-    // 2. Render background overlays for top-row and preset buttons
+    // 2. Render background overlays for top-row, scene and preset buttons
     if (text == "Arp")
     {
         g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.25f));
         g.fillRoundedRectangle (bounds, cornerSize);
         g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.6f));
         g.drawRoundedRectangle (bounds.reduced(0.5f), cornerSize, 1.25f);
+    }
+    else if (text == "A" || text == "B")
+    {
+        // Symmetrically light up Button A and B frames when active scene focus is held
+        bool isSceneActive = false;
+        if (text == "A") isSceneActive = !processor.isSceneBActive();
+        else if (text == "B") isSceneActive = processor.isSceneBActive();
+        
+        if (isSceneActive || shouldDrawButtonAsDown)
+        {
+            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.15f));
+            g.fillRoundedRectangle (bounds, cornerSize);
+            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.5f));
+            g.drawRoundedRectangle (bounds.reduced (0.5f), cornerSize, 1.25f);
+        }
+        return;
     }
     else if (isStaticTopButton)
     {
@@ -317,7 +373,16 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         const float thumbHeight = 18.0f;
         const float thumbWidth = 26.0f;
         const float thumbX = static_cast<float>(x) + (static_cast<float>(width) - thumbWidth) * 0.5f;
-        const float thumbY = sliderPos - (thumbHeight * 0.5f);
+        
+        // Dynamic fader travel restriction: Top reduced by 10%, bottom reduced by 8% to match slot tracks
+        float travelRange = maxSliderPos - minSliderPos;
+        float restrictedMinY = minSliderPos + (0.10f * travelRange);
+        float restrictedMaxY = maxSliderPos - (0.08f * travelRange);
+        
+        float progress = (sliderPos - minSliderPos) / travelRange;
+        float restrictedSliderPos = restrictedMinY + progress * (restrictedMaxY - restrictedMinY);
+        
+        const float thumbY = restrictedSliderPos - (thumbHeight * 0.5f);
 
         // Soft Outer drop shadow
         g.setColour (juce::Colours::black.withAlpha (0.4f));

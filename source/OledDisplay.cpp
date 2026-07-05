@@ -172,7 +172,7 @@ void OledDisplay::paint (juce::Graphics& g)
             return { x1, y2, z2 };
         };
 
-        // Center 3D globe within the upper display area (Y=90px) with non-overlapping radius
+        // Vertically shift the 3D globe upwards to account for the reduced screen height (320px)
         float globeCenterX = displayArea.getCentreX(); 
         float globeCenterY = displayArea.getY() + 75.0f; 
         float globeRadius = displayArea.getHeight() * 0.28f;   
@@ -457,7 +457,7 @@ void OledDisplay::paint (juce::Graphics& g)
 
         for (int i = 0; i < 8; ++i)
         {
-            // Evenly distributes the 8 monitor ladders inside the 680px bezel width
+            // Symmetrical, even spacing mapped inside the 680px bezel width
             float startX = 40.0f;
             float spacing = (bounds.getWidth() - 2.0f * startX) / 7.0f;
             float relativeCenter = startX + static_cast<float> (i) * spacing;

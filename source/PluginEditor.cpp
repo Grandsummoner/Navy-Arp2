@@ -1,4 +1,4 @@
-#define DRAW_DIAGNOSTIC_GRID 0  // Set to 1 to show the overlay and coordinate bubble, 0 to hide it
+#define DRAW_DIAGNOSTIC_GRID 1  // Set to 1 to show the overlay and coordinate bubble, 0 to hide it
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
@@ -208,8 +208,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     morphAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::morph.getParamID(), morphCrossfader);
     latchAttachment       = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::latch.getParamID(), latchButton);
     arpSeqAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::arpSeq.getParamID(), arpSeqButton);
-    polyAttachment        = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::poly.getParamID(), polyButton);
-    freezeAttachment      = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::freeze.getParamID(), freezeButton);
+    polyButtonAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::poly.getParamID(), polyButton);
+    freezeButtonAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::freeze.getParamID(), freezeButton);
 
     rootKeyAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::rootKey.getParamID(), rootKeyBox);
     scaleTypeAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::scaleType.getParamID(), scaleTypeBox);
@@ -359,14 +359,14 @@ void PluginEditor::mouseDown (const juce::MouseEvent& event)
     else if (event.eventComponent == &copyButton) { copyPressStartTime = juce::Time::getMillisecondCounter(); copyAlreadySaved = false; }
     else if (event.eventComponent == &initButton) { initPressStartTime = juce::Time::getMillisecondCounter(); initAlreadySaved = false; }
     else if (event.eventComponent == &sceneAButton) { sceneAPressStartTime = juce::Time::getMillisecondCounter(); sceneAAlreadySaved = false; }
-    else if (event.eventComponent == &sceneBButton) { sceneBPressStartTime = juce::Time::getMillisecondCounter(); sceneBAlreadySaved = false; }
+    else if (event.eventComponent == &sceneBButton) { sceneBPressStartTime = juce::Time::getMillisecondCounter(); sceneBActiveState = false; }
 }
 
 void PluginEditor::mouseUp (const juce::MouseEvent& event)
 {
     for (int i = 0; i < 8; ++i) { if (event.eventComponent == &presetButtons[i]) { presetPressStartTime[i] = 0; presetAlreadySaved[i] = false; } }
     if (event.eventComponent == &sceneAButton) { sceneAPressStartTime = 0; sceneAAlreadySaved = false; }
-    if (event.eventComponent == &sceneBButton) { sceneBPressStartTime = 0; sceneBAlreadySaved = false; }
+    if (event.eventComponent == &sceneBButton) { sceneBPressStartTime = 0; sceneBActiveState = false; }
     if (event.eventComponent == &saveButton) { savePressStartTime = 0; saveAlreadySaved = false; }
     if (event.eventComponent == &recallButton) { recallPressStartTime = 0; recallAlreadySaved = false; }
     if (event.eventComponent == &copyButton) { copyPressStartTime = 0; copyAlreadySaved = false; }
@@ -375,7 +375,7 @@ void PluginEditor::mouseUp (const juce::MouseEvent& event)
 
 void PluginEditor::paint (juce::Graphics& g)
 {
-    // 1. Draw static faceplate background
+    // Draw static faceplate background
     if (backgroundImage.isValid())
     {
         g.drawImage (backgroundImage, getLocalBounds().toFloat(), 
@@ -385,14 +385,17 @@ void PluginEditor::paint (juce::Graphics& g)
     {
         g.fillAll (juce::Colour (0xFF0D1E36));
     }
+}
 
-    // 2. Render diagnostic coordinate overlay grid
+void PluginEditor::paintOverChildren (juce::Graphics& g)
+{
+    // Render visual diagnostic grid on top of all UI components [1.1.8]
     if (DRAW_DIAGNOSTIC_GRID)
     {
         const int width = getWidth();
         const int height = getHeight();
 
-        // Draw 50px vertical grid lines (Cyan/Blue tint)
+        // Vertical Grid lines (Cyan/Blue tint)
         for (int x = 50; x < width; x += 50)
         {
             g.setColour (juce::Colour (0x4400E1FF));
@@ -403,27 +406,25 @@ void PluginEditor::paint (juce::Graphics& g)
             g.drawText (juce::String (x), x - 12, height - 12, 24, 10, juce::Justification::centred);
         }
 
-        // Draw 50px horizontal grid lines (Pink/Red tint)
+        // Horizontal Grid lines (Pink/Red tint)
         for (int y = 50; y < height; y += 50)
         {
             g.setColour (juce::Colour (0x44FF3366));
-            g.drawHorizontalLine (y, 0.0f, static_cast<float> (height));
+            g.drawHorizontalLine (y, 0.0f, static_cast<float> (width));
             
             g.setColour (juce::Colour (0xBBFF3366));
             g.setFont (juce::FontOptions (9.0f));
             g.drawText (juce::String (y), 4, y - 5, 24, 10, juce::Justification::left);
         }
 
-        // Track and render current mouse coordinates
+        // Track and draw current mouse cursor coordinate bubble
         auto mousePos = getMouseXYRelative();
         if (mousePos.x >= 0 && mousePos.x <= width && mousePos.y >= 0 && mousePos.y <= height)
         {
-            // Draw crosshairs
             g.setColour (juce::Colours::yellow.withAlpha (0.5f));
             g.drawVerticalLine (mousePos.x, 0.0f, static_cast<float> (height));
             g.drawHorizontalLine (mousePos.y, 0.0f, static_cast<float> (width));
 
-            // Draw coordinate info bubble
             g.setColour (juce::Colours::black.withAlpha (0.85f));
             g.fillRoundedRectangle (static_cast<float> (mousePos.x) + 12.0f, static_cast<float> (mousePos.y) + 12.0f, 65.0f, 20.0f, 3.0f);
             
@@ -437,18 +438,25 @@ void PluginEditor::paint (juce::Graphics& g)
     }
 }
 
+void PluginEditor::mouseMove (const juce::MouseEvent& event)
+{
+    juce::ignoreUnused (event);
+    if (DRAW_DIAGNOSTIC_GRID)
+        repaint(); // Force paintOverChildren to update as cursor tracks
+}
+
 void PluginEditor::resized()
 {
-    // Integrated exact pinpoint measurements from your diagnostic screenshots (Batch 1-3)
+    // Integrated exact pinpoint measurements from your diagnostic screenshots
     
     // 1. OLED Display screen
     oledDisplay.setBounds (160, 60, 680, 320);
 
     // 2. Left sidebar 2x2 grid centered exactly on your button caps (Centers: X=54.5, 97.5, Y=61.5, 94.0)
-    saveButton.setBounds (34, 47, 40, 28); 
-    recallButton.setBounds (78, 47, 40, 28); 
-    copyButton.setBounds (34, 80, 40, 28); 
-    initButton.setBounds (78, 80, 40, 28);
+    saveButton.setBounds (32, 46, 45, 30); 
+    recallButton.setBounds (75, 46, 45, 30); 
+    copyButton.setBounds (32, 79, 45, 30); 
+    initButton.setBounds (75, 79, 45, 30);
 
     // 3. Left sidebar small knobs centered exactly on your dials (Centers: X=73.5, Y=145.5, 208, 270.5, 333)
     // Sized to 111x70, giving them 7px TextBoxBelow height offset alignment
@@ -457,14 +465,14 @@ void PluginEditor::resized()
     legatoKnob.setBounds (18, 235, 111, 70);
     rateKnob.setBounds (18, 298, 111, 70);
 
-    // 4. Left Master Knob sitting exactly on the horizontal axis (Center: X=73.5, Y=439.5)
-    masterVelocityKnob.setBounds (13, 379, 121, 121);
+    // 4. Left Master Knob sitting exactly on your dial (Center: X=73, Y=438)
+    masterVelocityKnob.setBounds (13, 378, 121, 121);
 
     // 5. Right sidebar 2x2 grid centered exactly on your button caps (Centers: X=902.5, 945.5, Y=61.5, 94.0)
-    diceMeloButton.setBounds (882, 47, 40, 28); 
-    diceArtiButton.setBounds (926, 47, 40, 28); 
-    diceTimeButton.setBounds (882, 80, 40, 28); 
-    diceNavyButton.setBounds (926, 80, 40, 28);
+    diceMeloButton.setBounds (880, 46, 45, 30); 
+    diceArtiButton.setBounds (923, 46, 45, 30); 
+    diceTimeButton.setBounds (880, 79, 45, 30); 
+    diceNavyButton.setBounds (923, 79, 45, 30);
 
     // 6. Right sidebar small knobs centered exactly on your dials (Centers: X=926.5, Y=145.5, 208, 270.5, 333)
     entropyKnob.setBounds (871, 110, 111, 70);
@@ -472,7 +480,7 @@ void PluginEditor::resized()
     chaosKnob.setBounds (871, 235, 111, 70);
     octavesKnob.setBounds (871, 298, 111, 70);
 
-    // 7. Right Master Knob sitting exactly on the horizontal axis (Center: X=926.5, Y=439.5)
+    // 7. Right Master Knob sitting exactly on your dial (Center: X=927, Y=440)
     masterSwingKnob.setBounds (866, 379, 121, 121);
 
     // 8. Top Row Dropdowns (Aligned inside header slots, centered vertically on Y = 26)
@@ -494,7 +502,7 @@ void PluginEditor::resized()
     sceneBButton.setBounds (723, 402, 44, 44);
 
     // 11. Symmetrical Column Alignment (Y = 590 to 645 track length)
-    // Centered horizontally on the 8 columns starting at 75 with exact 121.28px spacing
+    // Centered horizontally on the 8 columns starting at 75 with exact 121.43px spacing
     for (int i = 0; i < 8; ++i) 
     {
         float trackCenter = 75.0f + static_cast<float> (i) * 121.43f;
@@ -581,7 +589,7 @@ void PluginEditor::timerCallback()
     }
 
     if (sceneAButton.isMouseButtonDown() && sceneAPressStartTime != 0 && !sceneAAlreadySaved) { if (now - sceneAPressStartTime >= 1000) { processor.setActiveAnchor (false); sceneAAlreadySaved = true; sceneAFlashTimer = 24; } }
-    if (sceneBButton.isMouseButtonDown() && sceneBPressStartTime != 0 && !sceneBAlreadySaved) { if (now - sceneBPressStartTime >= 1000) { processor.setActiveAnchor (true); sceneBAlreadySaved = true; sceneBFlashTimer = 24; } }
+    if (sceneBButton.isMouseButtonDown() && sceneBPressStartTime != 0 && !sceneBActiveState) { if (now - sceneBPressStartTime >= 1000) { processor.setActiveAnchor (true); sceneBActiveState = true; sceneBFlashTimer = 24; } }
 
     if (saveButton.isMouseButtonDown() && savePressStartTime != 0 && !saveAlreadySaved) { if (now - savePressStartTime >= 1000) { processor.savePreset (processor.activePresetIndex.load()); saveAlreadySaved = true; saveFlashTimer = 24; saveButton.setToggleState (false, juce::dontSendNotification); saveButton.repaint(); } }
     if (recallButton.isMouseButtonDown() && recallPressStartTime != 0 && !recallAlreadySaved) { if (now - recallPressStartTime >= 1000) { processor.loadPreset (processor.activePresetIndex.load()); recallAlreadySaved = true; recallFlashTimer = 24; recallButton.setToggleState (false, juce::dontSendNotification); recallButton.repaint(); } }
@@ -596,9 +604,6 @@ void PluginEditor::timerCallback()
             initAlreadySaved = true; initFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint();
         }
     }
-
-    if (DRAW_DIAGNOSTIC_GRID)
-        repaint();
 
     oledDisplay.repaint();
 }

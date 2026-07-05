@@ -10,12 +10,13 @@ public:
     ChromaCapsLookAndFeel (PluginProcessor& p, juce::AudioProcessorEditor* editor);
     ~ChromaCapsLookAndFeel() override;
 
+    // Decouples the textbox layout from the rotary dial to ensure accurate knob centering
+    juce::Slider::SliderLayout getSliderLayout (juce::Slider& slider) override;
+
     void drawButtonText (juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
     void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
     void drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, juce::Slider::SliderStyle style, juce::Slider& slider) override;
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height, float sliderPos, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) override;
-    
-    // Restores the missing declaration to resolve the C2509 compiler error
     void drawLabel (juce::Graphics& g, juce::Label& label) override;
 
 private:
