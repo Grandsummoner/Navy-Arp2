@@ -59,7 +59,6 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     int litCount = static_cast<int> (std::round (targetVal * 15.0f));
 
     int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
-    auto t = AppTheme::get (themeIdx);
 
     auto localBounds = slider.getLocalBounds().toFloat();
     float centerX = localBounds.getCentreX();
@@ -72,8 +71,10 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     float ledRadius = isMasterKnob ? (knobRadius + 5.0f) : (knobRadius + 3.5f);
     float ledDiameter = isMasterKnob ? 3.0f : 2.0f;
 
-    bool isLeftKnob = (cid == "rhythmMorph" || cid == "rest" || cid == "legato" || cid == "rate" || cid == "masterVelocity");
-    juce::Colour activeColor = isLeftKnob ? t.knobFillLeft : t.knobFillRight;
+    // Direct palette override based on active selected theme
+    juce::Colour activeColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
+    if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
+    else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Green
 
     // Draw the 15 outer LED indicator ring dots
     for (int i = 0; i < 15; ++i)
@@ -157,6 +158,11 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
             }
         }
 
+        int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+        juce::Colour storedColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
+        if (themeIdx == 1)      storedColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
+        else if (themeIdx == 2) storedColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Green
+
         juce::Colour textCol = juce::Colour (0xFF4F525D); // State 1 (Empty): Dim grey default
 
         if (flashTimer > 0)
@@ -164,17 +170,17 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
             bool flashOn = ((flashTimer / 4) % 2 == 1);
             if (flashOn)
             {
-                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Electric Cyan
-                textCol = (flashType == 1) ? juce::Colour::fromString ("#FF00E676") : juce::Colour::fromString ("#FF00E5FF");
+                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Bright Yellow/Amber
+                textCol = (flashType == 1) ? juce::Colour::fromString ("#FF00E676") : juce::Colour::fromString ("#FFFFB300");
             }
             else if (isSaved)
             {
-                textCol = juce::Colour::fromString ("#FFFF6D00"); // State 2 (Stored): Bright Amber/Orange
+                textCol = storedColor; // State 2 (Stored)
             }
         }
         else if (isSaved)
         {
-            textCol = button.isMouseOver() ? juce::Colours::white : juce::Colour::fromString ("#FFFF6D00").withAlpha (0.85f);
+            textCol = button.isMouseOver() ? juce::Colours::white : storedColor.withAlpha (0.85f);
         }
         else if (button.isMouseOver())
         {
@@ -200,7 +206,13 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     {
         auto bounds = button.getLocalBounds().toFloat();
         if (button.getToggleState() || button.isDown())
-            g.setColour (juce::Colour (0xFF00D2FF));
+        {
+            int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+            juce::Colour activeColor = juce::Colour (0xFF00E5FF);
+            if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1);
+            else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66);
+            g.setColour (activeColor);
+        }
         else
             g.setColour (juce::Colour (0xFFA0A5B0));
 
@@ -218,6 +230,8 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
     const bool isDiceButton = (text == "Melo" || text == "Arti" || text == "Time" || text == "Navy");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
+
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
 
     if (isUtilButton || isDiceButton)
     {
@@ -266,9 +280,13 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
 
     if (text == "Arp")
     {
-        g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.25f));
+        juce::Colour activeColor = juce::Colour (0xFF00E5FF);
+        if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1);
+        else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66);
+
+        g.setColour (activeColor.withAlpha (0.25f));
         g.fillRoundedRectangle (bounds, cornerSize);
-        g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.6f));
+        g.setColour (activeColor.withAlpha (0.6f));
         g.drawRoundedRectangle (bounds.reduced(0.5f), cornerSize, 1.25f);
         return;
     }
@@ -311,6 +329,10 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
             }
         }
 
+        juce::Colour storedColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
+        if (themeIdx == 1)      storedColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
+        else if (themeIdx == 2) storedColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Green
+
         auto innerBounds = bounds.reduced (1.0f);
         juce::Colour outlineCol = juce::Colour (0xFF1F2229).withAlpha (0.4f); // State 1 (Empty): Dim border
         juce::Colour fillCol = juce::Colours::transparentBlack;
@@ -318,23 +340,23 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         if (flashTimer > 0) {
             bool flashOn = ((flashTimer / 4) % 2 == 1);
             if (flashOn) {
-                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Electric Cyan
-                outlineCol = (flashType == 1) ? juce::Colour::fromString ("#FF00E676") : juce::Colour::fromString ("#FF00E5FF");
+                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Bright Yellow/Amber
+                outlineCol = (flashType == 1) ? juce::Colour::fromString ("#FF00E676") : juce::Colour::fromString ("#FFFFB300");
                 fillCol = outlineCol.withAlpha (0.15f);
             } else if (isSaved) {
-                outlineCol = juce::Colour::fromString ("#FFFF6D00").withAlpha (0.4f); // State 2 (Stored): Bright Amber
+                outlineCol = storedColor.withAlpha (0.4f); // State 2 (Stored): Theme match
             }
         } else if (isSaved) {
-            outlineCol = juce::Colour::fromString ("#FFFF6D00").withAlpha (0.35f); // State 2 (Stored): Bright Amber
+            outlineCol = storedColor.withAlpha (0.35f); // State 2 (Stored): Theme match
             if (button.isMouseOver())
-                outlineCol = juce::Colour::fromString ("#FFFF6D00").withAlpha (0.7f);
+                outlineCol = storedColor.withAlpha (0.7f);
         } else if (button.isMouseOver()) {
             outlineCol = juce::Colours::white.withAlpha (0.25f);
         }
 
         if (button.isDown()) {
             fillCol = juce::Colours::white.withAlpha (0.05f);
-            outlineCol = juce::Colour::fromString ("#FF00E5FF").withAlpha (0.9f);
+            outlineCol = storedColor.withAlpha (0.9f);
         }
 
         if (fillCol != juce::Colours::transparentBlack) {
@@ -351,9 +373,13 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
     {
         if (button.getClickingTogglesState() && button.getToggleState())
         {
-            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.25f));
+            juce::Colour ledColor = juce::Colour (0xFF00E5FF);
+            if (themeIdx == 1)      ledColor = juce::Colour (0xFFECEFF1);
+            else if (themeIdx == 2) ledColor = juce::Colour (0xFF00FF66);
+
+            g.setColour (ledColor.withAlpha (0.25f));
             g.fillRoundedRectangle (bounds, cornerSize);
-            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.6f));
+            g.setColour (ledColor.withAlpha (0.6f));
             g.drawRoundedRectangle (bounds.reduced(0.5f), cornerSize, 1.25f);
         }
         else if (shouldDrawButtonAsDown)

@@ -186,7 +186,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     cycleLengthBox.addItemList (juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 1);
 
     addAndMakeVisible (panelThemeBox);
-    panelThemeBox.addItemList (juce::StringArray { "Navy Cyber", "Skyline", "Monochrome", "Matrix" }, 1);
+    // Updated option names: Navy, Monochrome, Matrix
+    panelThemeBox.addItemList (juce::StringArray { "Navy", "Monochrome", "Matrix" }, 1);
     panelThemeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::panelTheme.getParamID(), panelThemeBox);
 
     fader1Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::fader1.getParamID(), fader1);
@@ -555,24 +556,24 @@ void PluginEditor::timerCallback()
     if (copyFlashTimer > 0) { copyFlashTimer--; if (copyFlashTimer == 0) copyButton.repaint(); }
     if (initFlashTimer > 0) { initFlashTimer--; if (initFlashTimer == 0) initButton.repaint(); }
 
-    float morphVal = static_cast<float> (morphCrossfader.getValue());
-    auto interpolate = [morphVal](float valA, float valB) -> float {
-        return (valA * (1.0f - morphVal)) + (valB * morphVal);
-    };
+    // Knobs and upfaders are tied to the active focused scene state directly.
+    // The crossfader position is completely independent and only interpolates audio playback (DSP).
+    bool isSceneB = processor.isSceneBActiveAnchor.load();
+    SceneState& activeScene = isSceneB ? processor.sceneB : processor.sceneA;
 
-    if (!rhythmMorphKnob.isMouseButtonDown()) rhythmMorphKnob.setValue (interpolate (processor.sceneA.rhythmMorph, processor.sceneB.rhythmMorph), juce::dontSendNotification);
-    if (!restKnob.isMouseButtonDown())        restKnob.setValue (interpolate (processor.sceneA.rest,        processor.sceneB.rest),        juce::dontSendNotification);
-    if (!legatoKnob.isMouseButtonDown())      legatoKnob.setValue (interpolate (processor.sceneA.legato,    processor.sceneB.legato),      juce::dontSendNotification);
-    if (!rateKnob.isMouseButtonDown())        rateKnob.setValue (interpolate (processor.sceneA.rate,        processor.sceneB.rate),        juce::dontSendNotification);
-    if (!entropyKnob.isMouseButtonDown())     entropyKnob.setValue (interpolate (processor.sceneA.entropy,   processor.sceneB.entropy),   juce::dontSendNotification);
-    if (!harmonyKnob.isMouseButtonDown())     harmonyKnob.setValue (interpolate (processor.sceneA.harmony,   processor.sceneB.harmony),   juce::dontSendNotification);
-    if (!chaosKnob.isMouseButtonDown())       chaosKnob.setValue (interpolate (processor.sceneA.chaos,     processor.sceneB.chaos),     juce::dontSendNotification);
-    if (!octavesKnob.isMouseButtonDown())     octavesKnob.setValue (interpolate (processor.sceneA.octaves,   processor.sceneB.octaves),   juce::dontSendNotification);
+    if (!rhythmMorphKnob.isMouseButtonDown()) rhythmMorphKnob.setValue (activeScene.rhythmMorph, juce::dontSendNotification);
+    if (!restKnob.isMouseButtonDown())        restKnob.setValue (activeScene.rest,        juce::dontSendNotification);
+    if (!legatoKnob.isMouseButtonDown())      legatoKnob.setValue (activeScene.legato,    juce::dontSendNotification);
+    if (!rateKnob.isMouseButtonDown())        rateKnob.setValue (activeScene.rate,        juce::dontSendNotification);
+    if (!entropyKnob.isMouseButtonDown())     entropyKnob.setValue (activeScene.entropy,   juce::dontSendNotification);
+    if (!harmonyKnob.isMouseButtonDown())     harmonyKnob.setValue (activeScene.harmony,   juce::dontSendNotification);
+    if (!chaosKnob.isMouseButtonDown())       chaosKnob.setValue (activeScene.chaos,     juce::dontSendNotification);
+    if (!octavesKnob.isMouseButtonDown())     octavesKnob.setValue (activeScene.octaves,   juce::dontSendNotification);
 
     juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     for (int i = 0; i < 8; ++i) {
         if (!faders[i]->isMouseButtonDown()) {
-            faders[i]->setValue (interpolate (processor.sceneA.faders[i], processor.sceneB.faders[i]), juce::dontSendNotification);
+            faders[i]->setValue (activeScene.faders[i], juce::dontSendNotification);
         }
     }
 

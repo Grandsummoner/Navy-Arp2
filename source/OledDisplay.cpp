@@ -438,15 +438,15 @@ void OledDisplay::paint (juce::Graphics& g)
         g.drawText (metaText, displayArea.removeFromTop (15.0f), juce::Justification::centred, true);
 
         const int numSegments = 16;
-        const float segmentHeight = 6.0f;      // Shorter (was 8.0f)
-        const float segmentSpacing = 2.0f;     // Closer (was 3.0f)
+        const float segmentHeight = 10.0f;     // Chunky, fat segments (was 8.0f)
+        const float segmentSpacing = 2.0f;      // Closer segments (was 3.0f)
         const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); 
-        float fadersY = bounds.getHeight() - maxLaddersHeight - 20.0f; // Shifted slightly down (was - 25.0f)
+        float fadersY = bounds.getHeight() - maxLaddersHeight; // Ends exactly at the bottom border of the OLED box (320.0f)
 
-        // Symmetrically aligned with the 680px width of the OLED screen container, looking "fat" and occupying full space
-        const float colWidth = 66.0f;
-        const float spacing = 16.0f;
-        const float startX = 20.0f;
+        // Symmetrically aligned with the 680px width of the OLED container (8 columns * 85px = 680px, no gaps)
+        const float colWidth = 85.0f;
+        const float spacing = 0.0f;
+        const float startX = 0.0f;
 
         for (int i = 0; i < 8; ++i)
         {
@@ -478,21 +478,7 @@ void OledDisplay::paint (juce::Graphics& g)
                 g.fillRect (segmentRect);
             }
 
-            float textY = colBounds.getY() + maxLaddersHeight + 4.0f;
-            auto stepNumRect = juce::Rectangle<float> (colBounds.getX(), textY, colBounds.getWidth(), 15.0f);
-            
-            if (isActiveStep)
-            {
-                g.setColour (juce::Colour (0xFFFF4500));
-                g.setFont (juce::FontOptions (11.0f, juce::Font::bold));
-            }
-            else
-            {
-                g.setColour (juce::Colours::grey.withAlpha (0.5f));
-                g.setFont (juce::FontOptions (10.0f, juce::Font::plain));
-            }
-
-            g.drawText (juce::String (i + 1), stepNumRect, juce::Justification::centred, true);
+            // Removed step number labels below columns as requested
         }
     }
 }
