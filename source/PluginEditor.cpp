@@ -84,6 +84,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         sceneBtns[i]->setButtonText (sceneTxt[i]); 
         sceneBtns[i]->addMouseListener (this, false); 
         sceneBtns[i]->setLookAndFeel (&chromaLookAndFeel); 
+        sceneBtns[i]->setTriggeredOnMouseDown (true); // Instantly switches on mouse down
     }
 
     juce::TextButton* utilBtns[] = { &saveButton, &recallButton, &copyButton, &initButton }; 
@@ -143,6 +144,13 @@ PluginEditor::PluginEditor (PluginProcessor& p)
             copyButton.setToggleState (false, juce::dontSendNotification); 
             copyButton.repaint(); 
         }
+        else {
+            // Instant selection toggle (no long press needed)
+            processor.setActiveAnchor (false); 
+            sceneAFlashTimer = 24;
+            sceneAButton.repaint();
+            sceneBButton.repaint();
+        }
     };
     sceneBButton.onClick = [this] {
         if (initButton.getToggleState()) { processor.clearSceneB(); sceneBFlashTimer = 24; initButton.setToggleState (false, juce::dontSendNotification); initButton.repaint(); }
@@ -153,6 +161,13 @@ PluginEditor::PluginEditor (PluginProcessor& p)
             sceneBFlashTimer = 24;
             copyButton.setToggleState (false, juce::dontSendNotification); 
             copyButton.repaint(); 
+        }
+        else {
+            // Instant selection toggle (no long press needed)
+            processor.setActiveAnchor (true); 
+            sceneBFlashTimer = 24;
+            sceneAButton.repaint();
+            sceneBButton.repaint();
         }
     };
 
@@ -570,9 +585,6 @@ void PluginEditor::timerCallback()
         }
         if (presetFlashTimer[i] > 0) { presetFlashTimer[i]--; if (presetFlashTimer[i] == 0) presetButtons[i].repaint(); }
     }
-
-    if (sceneAButton.isMouseButtonDown() && sceneAPressStartTime != 0 && !sceneAAlreadySaved) { if (now - sceneAPressStartTime >= 1000) { processor.setActiveAnchor (false); sceneAAlreadySaved = true; sceneAFlashTimer = 24; } }
-    if (sceneBButton.isMouseButtonDown() && sceneBPressStartTime != 0 && !sceneBActiveState) { if (now - sceneBPressStartTime >= 1000) { processor.setActiveAnchor (true); sceneBActiveState = true; sceneBFlashTimer = 24; } }
 
     if (saveButton.isMouseButtonDown() && savePressStartTime != 0 && !saveAlreadySaved) { if (now - savePressStartTime >= 1000) { processor.savePreset (processor.activePresetIndex.load()); saveAlreadySaved = true; saveFlashTimer = 24; saveButton.setToggleState (false, juce::dontSendNotification); saveButton.repaint(); } }
     if (recallButton.isMouseButtonDown() && recallPressStartTime != 0 && !recallAlreadySaved) { if (now - recallPressStartTime >= 1000) { processor.loadPreset (processor.activePresetIndex.load()); recallAlreadySaved = true; recallFlashTimer = 24; recallButton.setToggleState (false, juce::dontSendNotification); recallButton.repaint(); } }

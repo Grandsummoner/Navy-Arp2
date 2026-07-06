@@ -140,7 +140,7 @@ void OledDisplay::paint (juce::Graphics& g)
         int rangeShift = static_cast<int> (*processor.apvts.getRawParameterValue (IDs::octaves.getParamID()));
         juce::String octStr = (rangeShift >= 0 ? "+" : "") + juce::String (rangeShift);
 
-        juce::String metaText = "SYSTEM STATUS: ACTIVE | KEY: " + keyStr + " | SCALE: " + scaleStr.toUpperCase() + " | STNC: INTERNAL | RATE: " + rateStr + " | VOICING: " + voiceStr;
+        juce::String metaText = "SYSTEM STATUS: ACTIVE | KEY: " + keyStr + " | SCALE: " + scaleStr.toUpperCase() + " | SYNC: INTERNAL | RATE: " + rateStr + " | VOICING: " + voiceStr;
 
         struct Point3D { float x, y, z; };
         std::vector<Point3D> vertices;
@@ -173,8 +173,8 @@ void OledDisplay::paint (juce::Graphics& g)
         };
 
         float globeCenterX = displayArea.getCentreX(); 
-        float globeCenterY = displayArea.getY() + 120.0f; 
-        float globeRadius = displayArea.getHeight() * 0.28f;   
+        float globeCenterY = displayArea.getY() + 110.0f; // Adjusted slightly upward for larger globe (was + 120.0f)
+        float globeRadius = displayArea.getHeight() * 0.38f; // Sized up from 0.28f to 0.38f for bigger globe  
         float cameraDistance = 2.2f;
 
         std::vector<juce::Point<float>> projectedPoints;
@@ -438,10 +438,10 @@ void OledDisplay::paint (juce::Graphics& g)
         g.drawText (metaText, displayArea.removeFromTop (15.0f), juce::Justification::centred, true);
 
         const int numSegments = 16;
-        const float segmentHeight = 8.0f;      
-        const float segmentSpacing = 3.0f;     
+        const float segmentHeight = 6.0f;      // Shorter (was 8.0f)
+        const float segmentSpacing = 2.0f;     // Closer (was 3.0f)
         const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); 
-        float fadersY = bounds.getHeight() - maxLaddersHeight - 25.0f; 
+        float fadersY = bounds.getHeight() - maxLaddersHeight - 20.0f; // Shifted slightly down (was - 25.0f)
 
         // Symmetrically aligned with the 680px width of the OLED screen container, looking "fat" and occupying full space
         const float colWidth = 66.0f;

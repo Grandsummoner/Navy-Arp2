@@ -89,7 +89,13 @@ void PluginProcessor::setActiveAnchor (bool useSceneB)
 
 void PluginProcessor::captureActiveParametersToActiveScene()
 {
-    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    // ONLY capture if we are at one of the clean end points (0.0 or 1.0) of morphing,
+    // to prevent the feedback loop that snaps all parameters to the extremes.
+    float morphVal = morphPtr->load();
+    if (morphVal > 0.01f && morphVal < 0.99f)
+        return;
+
+    SceneState& activeScene = (morphVal <= 0.01f) ? sceneA : sceneB;
     for (int i = 0; i < 8; ++i)
         activeScene.faders[i] = faderPtrs[i]->load();
     activeScene.rhythmMorph = rhythmMorphPtr->load();
@@ -460,6 +466,9 @@ void PluginProcessor::loadPreset (int slotIndex)
 
 void PluginProcessor::captureScene (int side) 
 { 
+    float morphVal = morphPtr->load();
+    if (morphVal > 0.01f && morphVal < 0.99f) return; // Protect scene snapshots during morphing
+
     SceneState& s = (side == 0) ? sceneA : sceneB;
     for (int i = 0; i < 8; ++i) s.faders[i] = faderPtrs[i]->load(); 
     s.rhythmMorph = rhythmMorphPtr->load(); s.rest = restPtr->load(); s.legato = legatoPtr->load(); 
