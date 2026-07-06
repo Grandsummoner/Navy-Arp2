@@ -56,7 +56,10 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
             }
         }
     }
-    int litCount = static_cast<int> (std::round (targetVal * 15.0f));
+    
+    // Map states to 15-dot indices [1.2.0]
+    int litCountBase = static_cast<int> (std::round (sliderPos * 15.0f));
+    int litCountTarget = static_cast<int> (std::round (targetVal * 15.0f));
 
     int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
 
@@ -66,40 +69,51 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     
     const bool isMasterKnob = (cid == "masterVelocity" || cid == "masterSwing");
     
-    // Scale radii carefully to fit the new 1000 x 681 resolution coordinates
+    // Scale radii carefully to fit the 1000 x 681 resolution coordinates
     float knobRadius = isMasterKnob ? 34.0f : 12.0f;
     float ledRadius = isMasterKnob ? (knobRadius + 5.0f) : (knobRadius + 3.5f);
     float ledDiameter = isMasterKnob ? 3.0f : 2.0f;
 
-    // Apply color palette directly matching the selected choice
+    // Palette routing matching active chosen panel theme [1.2.0]
     juce::Colour activeColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
     if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
     else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Neon Green
 
-    // Draw the 15 outer LED indicator ring dots
+    // Draw the 15 outer LED indicator ring dots [1.2.0]
     for (int i = 0; i < 15; ++i)
     {
         float angle = rotaryStartAngle + (static_cast<float> (i) / 14.0f) * (rotaryEndAngle - rotaryStartAngle);
         float ledX = centerX + ledRadius * std::sin (angle) - ledDiameter * 0.5f;
         float ledY = centerY - ledRadius * std::cos (angle) - ledDiameter * 0.5f;
 
-        if (i < litCount)
+        // 1. Draw baseline indicator arc (Dim White) [1.2.0]
+        if (i < litCountBase)
         {
-            float outerRadius = isMasterKnob ? 5.0f : 3.0f;
-            juce::ColourGradient glow (activeColor.withAlpha (0.6f), ledX, ledY,
-                                       activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
-                                       true);
-            g.setGradientFill (glow);
-            g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
-
             float innerRadius = isMasterKnob ? 1.5f : 1.0f;
-            g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.2f));
+            g.setColour (juce::Colours::white.withAlpha (0.22f)); // Soft translucent white
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
         else
         {
             float innerRadius = 0.6f;
             g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
+            g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
+        }
+
+        // 2. Draw active LFO target value as a single, bright, glowing theme-colored dot [1.2.0]
+        if (i == litCountTarget - 1 || (litCountTarget == 0 && i == 0))
+        {
+            // Draw radial glow matching the active scheme
+            float outerRadius = isMasterKnob ? 5.0f : 3.0f;
+            juce::ColourGradient glow (activeColor.withAlpha (0.8f), ledX, ledY,
+                                       activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
+                                       true);
+            g.setGradientFill (glow);
+            g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
+
+            // Draw crisp inner core
+            float innerRadius = isMasterKnob ? 2.0f : 1.25f;
+            g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.1f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
     }
@@ -134,7 +148,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         if (text == "B") isLit = processor.isSceneBActive();
 
         if (isLit || button.isDown())
-            g.setColour (juce::Colours::white); // Bright white inside the red glow
+            g.setColour (juce::Colours::white); // Bright white inside the red glow [1.2.0]
         else
             g.setColour (juce::Colour (0xFF757575)); // Dim white/grey when inactive
 
@@ -171,7 +185,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
             bool flashOn = ((flashTimer / 4) % 2 == 1);
             if (flashOn)
             {
-                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Bright Yellow/Amber
+                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Bright Yellow/Amber [1.2.0]
                 textCol = (flashType == 1) ? juce::Colour::fromString ("#FF00E676") : juce::Colour::fromString ("#FFFFB300");
             }
             else if (isSaved)
@@ -298,7 +312,7 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         if (text == "B") isLit = processor.isSceneBActive();
 
         if (isLit || shouldDrawButtonAsDown) {
-            // Distinct red glowing background & strong red border
+            // High-contrast deep red glowing background & solid red border [1.2.0]
             g.setColour (juce::Colour (0xFFFF0000).withAlpha (0.15f));
             g.fillRoundedRectangle (bounds, cornerSize);
             g.setColour (juce::Colour (0xFFFF0000).withAlpha (0.8f));
@@ -306,7 +320,7 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         } else if (shouldDrawButtonAsHighlighted) {
             g.setColour (juce::Colours::white.withAlpha (0.04f));
             g.fillRoundedRectangle (bounds, cornerSize);
-            g.setColour (juce::Colour (0xFFFF0000).withAlpha (0.2f)); // Subtle red hover border
+            g.setColour (juce::Colour (0xFFFF0000).withAlpha (0.2f)); // Subtle red outline on hover
             g.drawRoundedRectangle (bounds.reduced (0.5f), cornerSize, 1.0f);
         } else {
             g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.4f));
@@ -340,7 +354,7 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         if (flashTimer > 0) {
             bool flashOn = ((flashTimer / 4) % 2 == 1);
             if (flashOn) {
-                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Bright Yellow/Amber
+                // State 3 (Save flash): Emerald Green | State 4 (Recall flash): Bright Yellow/Amber [1.2.0]
                 outlineCol = (flashType == 1) ? juce::Colour::fromString ("#FF00E676") : juce::Colour::fromString ("#FFFFB300");
                 fillCol = outlineCol.withAlpha (0.15f);
             } else if (isSaved) {
@@ -420,7 +434,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         float activeEndX = endX - margin;
         float activeW = totalW - (margin * 2.0f);
 
-        // Continuous Value Proportions (strictly resolves physical/visual snapping)
+        // Continuous Value Proportions mapping based strictly on slider getValue() values [1.2.0]
         float progress = static_cast<float>((slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
         progress = juce::jlimit (0.0f, 1.0f, progress);
 
@@ -470,7 +484,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         const float thumbWidth = 18.0f;
         const float thumbX = static_cast<float>(x) + (static_cast<float>(width) - thumbWidth) * 0.5f;
         
-        // Continuous Value Proportions (strictly resolves physical/visual snapping)
+        // Continuous Value Proportions mapping strictly via Slider value [1.2.0]
         float progress = static_cast<float>((slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
         progress = juce::jlimit (0.0f, 1.0f, progress);
 

@@ -433,6 +433,7 @@ void OledDisplay::paint (juce::Graphics& g)
 
         displayArea.removeFromTop (4.0f);
 
+        // Fixed STNC typo to SYNC [1.2.0]
         g.setColour (juce::Colour (0xFF00FF66).withAlpha(0.85f)); 
         g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.drawText (metaText, displayArea.removeFromTop (15.0f), juce::Justification::centred, true);
@@ -441,9 +442,9 @@ void OledDisplay::paint (juce::Graphics& g)
         const float segmentHeight = 5.0f;      // Halved segment height (was 10.0f)
         const float segmentSpacing = 1.0f;     // Closer segment spacing (was 2.0f)
         const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); 
-        float fadersY = bounds.getHeight() - maxLaddersHeight; // Ends exactly at the bottom border of the OLED box (320.0f)
+        float fadersY = bounds.getHeight() - maxLaddersHeight; // Ends exactly at the bottom border of the OLED box (320.0f) [1.2.0]
 
-        // Continuous, fat, gapless columns completely filling the 680px width (8 columns * 85px = 680px)
+        // Continuous, fat, gapless columns completely filling the 680px width (8 columns * 85px = 680px) [1.2.0]
         const float colWidth = 85.0f;
         const float spacing = 0.0f;
         const float startX = 0.0f;
@@ -478,7 +479,7 @@ void OledDisplay::paint (juce::Graphics& g)
                 g.fillRect (segmentRect);
             }
 
-            // Removed step number labels below columns as requested
+            // Stripped step number labels below columns [1.2.0]
         }
     }
 }

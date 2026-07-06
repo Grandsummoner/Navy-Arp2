@@ -186,7 +186,6 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     cycleLengthBox.addItemList (juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 1);
 
     addAndMakeVisible (panelThemeBox);
-    // Updated options: Navy (0), Monochrome (1), Matrix (2)
     panelThemeBox.addItemList (juce::StringArray { "Navy", "Monochrome", "Matrix" }, 1);
     panelThemeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::panelTheme.getParamID(), panelThemeBox);
 
@@ -395,6 +394,11 @@ void PluginEditor::paint (juce::Graphics& g)
 
 void PluginEditor::paintOverChildren (juce::Graphics& g)
 {
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+    juce::Colour themeColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
+    if (themeIdx == 1)      themeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
+    else if (themeIdx == 2) themeColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Neon Green
+
     if (DRAW_DIAGNOSTIC_GRID)
     {
         const int width = getWidth();
@@ -438,6 +442,68 @@ void PluginEditor::paintOverChildren (juce::Graphics& g)
             g.drawText (coordStr, mousePos.x + 12, mousePos.y + 12, 65, 20, juce::Justification::centred);
         }
     }
+
+    // Custom Small HUD display boxes under the 8 small knobs [1.2.0]
+    juce::Slider* smallKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+    juce::String smallLabels[] = { "MORPH", "REST", "LEGATO", "RATE", "ENTROPY", "HARMONY", "CHAOS", "OCTAVES" };
+    int smallKnobsX[] = { 44, 44, 44, 44, 902, 902, 902, 902 };
+    int smallKnobsY[] = { 121, 182, 244, 306, 121, 182, 244, 306 };
+
+    for (int i = 0; i < 8; ++i)
+    {
+        int boxX = smallKnobsX[i];
+        int boxY = smallKnobsY[i] + 48; // Located exactly 48px below knob origins
+        int boxW = 48;
+        int boxH = 12;
+
+        g.setColour (juce::Colour (0xFF05070A)); // Solid dark fill to clear background faceplate area
+        g.fillRect (boxX, boxY, boxW, boxH);
+
+        if (smallKnobs[i]->isMouseDragging())
+        {
+            // Display a sleek horizontal progress bar instead of text [1.2.0]
+            float val = static_cast<float> (smallKnobs[i]->getValue());
+            float progress = val;
+            if (smallLabels[i] == "RATE")         progress = val / 3.0f;
+            else if (smallLabels[i] == "ENTROPY")  progress = (val + 1.0f) * 0.5f;
+            else if (smallLabels[i] == "OCTAVES")  progress = (val + 3.0f) / 6.0f;
+            progress = juce::jlimit (0.0f, 1.0f, progress);
+
+            int fillW = static_cast<int> (std::round (progress * static_cast<float> (boxW - 4)));
+            g.setColour (themeColor);
+            g.fillRect (boxX + 2, boxY + 4, fillW, boxH - 8);
+        }
+        else
+        {
+            // Center the neat uppercase label text
+            g.setColour (themeColor.withAlpha (0.75f));
+            g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
+            g.drawFittedText (smallLabels[i], boxX, boxY, boxW, boxH, juce::Justification::centred, 1);
+        }
+    }
+
+    // Custom Master HUD display boxes centered directly under the big knobs [1.2.0]
+    // 1. Bottom-Left: Master Note Density (VEL) HUD Box
+    juce::Rectangle<int> denBox (33, 484, 70, 15);
+    g.setColour (juce::Colour (0xFF05070A));
+    g.fillRoundedRectangle (denBox.toFloat(), 2.0f);
+    g.setColour (themeColor.withAlpha (0.4f));
+    g.drawRoundedRectangle (denBox.toFloat(), 2.0f, 1.0f);
+
+    g.setColour (themeColor);
+    g.setFont (juce::FontOptions (9.5f, juce::Font::bold));
+    juce::String denText = "DEN: " + juce::String (static_cast<int> (std::round (masterVelocityKnob.getValue() * 100.0f))) + "%";
+    g.drawFittedText (denText, denBox, juce::Justification::centred, 1);
+
+    // 2. Bottom-Right: Master Swing (SWG) HUD Box
+    juce::Rectangle<int> swgBox (891, 484, 70, 15);
+    g.setColour (juce::Colour (0xFF05070A));
+    g.fillRoundedRectangle (swgBox.toFloat(), 2.0f);
+    g.setColour (themeColor.withAlpha (0.4f));
+    g.drawRoundedRectangle (swgBox.toFloat(), 2.0f, 1.0f);
+
+    juce::String swgText = "SWG: " + juce::String (static_cast<int> (std::round (masterSwingKnob.getValue() * 100.0f))) + "%";
+    g.drawFittedText (swgText, swgBox, juce::Justification::centred, 1);
 }
 
 void PluginEditor::mouseMove (const juce::MouseEvent& event)
@@ -561,53 +627,53 @@ void PluginEditor::timerCallback()
         return (valA * (1.0f - morphVal)) + (valB * morphVal);
     };
 
-    // Motorized Morphing Behavior (Independent Active Focus Editing)
+    // Independent Active Focus Editing Routing (Spring-Loaded Motorized Morph) [1.2.0]
     bool isSceneB = processor.isSceneBActiveAnchor.load();
     SceneState& activeScene = isSceneB ? processor.sceneB : processor.sceneA;
 
-    if (rhythmMorphKnob.isMouseButtonDown()) {
+    if (rhythmMorphKnob.isMouseDragging()) {
         activeScene.rhythmMorph = static_cast<float>(rhythmMorphKnob.getValue());
     } else {
         rhythmMorphKnob.setValue (interpolate (processor.sceneA.rhythmMorph, processor.sceneB.rhythmMorph), juce::dontSendNotification);
     }
 
-    if (restKnob.isMouseButtonDown()) {
+    if (restKnob.isMouseDragging()) {
         activeScene.rest = static_cast<float>(restKnob.getValue());
     } else {
         restKnob.setValue (interpolate (processor.sceneA.rest, processor.sceneB.rest), juce::dontSendNotification);
     }
 
-    if (legatoKnob.isMouseButtonDown()) {
+    if (legatoKnob.isMouseDragging()) {
         activeScene.legato = static_cast<float>(legatoKnob.getValue());
     } else {
         legatoKnob.setValue (interpolate (processor.sceneA.legato, processor.sceneB.legato), juce::dontSendNotification);
     }
 
-    if (rateKnob.isMouseButtonDown()) {
+    if (rateKnob.isMouseDragging()) {
         activeScene.rate = static_cast<float>(rateKnob.getValue());
     } else {
         rateKnob.setValue (interpolate (processor.sceneA.rate, processor.sceneB.rate), juce::dontSendNotification);
     }
 
-    if (entropyKnob.isMouseButtonDown()) {
+    if (entropyKnob.isMouseDragging()) {
         activeScene.entropy = static_cast<float>(entropyKnob.getValue());
     } else {
         entropyKnob.setValue (interpolate (processor.sceneA.entropy, processor.sceneB.entropy), juce::dontSendNotification);
     }
 
-    if (harmonyKnob.isMouseButtonDown()) {
+    if (harmonyKnob.isMouseDragging()) {
         activeScene.harmony = static_cast<float>(harmonyKnob.getValue());
     } else {
         harmonyKnob.setValue (interpolate (processor.sceneA.harmony, processor.sceneB.harmony), juce::dontSendNotification);
     }
 
-    if (chaosKnob.isMouseButtonDown()) {
+    if (chaosKnob.isMouseDragging()) {
         activeScene.chaos = static_cast<float>(chaosKnob.getValue());
     } else {
         chaosKnob.setValue (interpolate (processor.sceneA.chaos, processor.sceneB.chaos), juce::dontSendNotification);
     }
 
-    if (octavesKnob.isMouseButtonDown()) {
+    if (octavesKnob.isMouseDragging()) {
         activeScene.octaves = static_cast<float>(octavesKnob.getValue());
     } else {
         octavesKnob.setValue (interpolate (processor.sceneA.octaves, processor.sceneB.octaves), juce::dontSendNotification);
@@ -615,11 +681,61 @@ void PluginEditor::timerCallback()
 
     juce::Slider* faders[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     for (int i = 0; i < 8; ++i) {
-        if (faders[i]->isMouseButtonDown()) {
+        if (faders[i]->isMouseDragging()) {
             activeScene.faders[i] = static_cast<float>(faders[i]->getValue());
         } else {
             faders[i]->setValue (interpolate (processor.sceneA.faders[i], processor.sceneB.faders[i]), juce::dontSendNotification);
         }
+    }
+
+    // OLED Parameter HUD Overlay Triggering [1.2.0]
+    juce::Slider* smallKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
+    juce::String smallNames[] = { "Rhythm Morph", "Rest", "Legato", "Rate", "Entropy", "Harmony", "Chaos", "Octaves" };
+    for (int i = 0; i < 8; ++i)
+    {
+        if (smallKnobs[i]->isMouseDragging())
+        {
+            float val = static_cast<float> (smallKnobs[i]->getValue());
+            
+            // Format LFO speeds/depths
+            juce::String lfoText = "Off";
+            if (processor.lfoRatePtrs[i] != nullptr && processor.lfoDepthPtrs[i] != nullptr)
+            {
+                int rChoice = static_cast<int> (processor.lfoRatePtrs[i]->load());
+                float depth = processor.lfoDepthPtrs[i]->load();
+                if (rChoice > 0 && depth > 0.0f)
+                {
+                    juce::StringArray speeds { "Off", "1/4", "1/8", "1/16", "1/32" };
+                    lfoText = speeds[rChoice] + " (" + juce::String (static_cast<int> (depth * 100.0f)) + "%)";
+                }
+            }
+
+            float progress = val;
+            if (smallNames[i] == "Rate")         progress = val / 3.0f;
+            else if (smallNames[i] == "Entropy")  progress = (val + 1.0f) * 0.5f;
+            else if (smallNames[i] == "Octaves")  progress = (val + 3.0f) / 6.0f;
+            progress = juce::jlimit (0.0f, 1.0f, progress);
+
+            oledDisplay.showParameterOverlay (smallNames[i], progress, lfoText);
+        }
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        if (faders[i]->isMouseDragging())
+        {
+            oledDisplay.showParameterOverlay ("Step " + juce::String (i + 1) + " Prob", static_cast<float> (faders[i]->getValue()), "Off");
+        }
+    }
+
+    if (masterVelocityKnob.isMouseDragging())
+    {
+        oledDisplay.showParameterOverlay ("Note Density", static_cast<float> (masterVelocityKnob.getValue()), "Off");
+    }
+
+    if (masterSwingKnob.isMouseDragging())
+    {
+        oledDisplay.showParameterOverlay ("Master Swing", static_cast<float> (masterSwingKnob.getValue()), "Off");
     }
 
     for (int i = 0; i < 8; ++i) {

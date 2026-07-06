@@ -312,7 +312,24 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                 morphedFaders[i] = (sceneA.faders[i] * (1.0f - morphVal)) + (sceneB.faders[i] * morphVal);
             }
 
-            float faderProb = isFreezeActive ? frozenFaders[localStep] : morphedFaders[localStep];
+            // Real-time 3-Zone Note Density (Fill) Calculation
+            float rawProb = isFreezeActive ? frozenFaders[localStep] : morphedFaders[localStep];
+            float density = masterVelocityPtr->load(); // Note Density parameter (0.0 to 1.0)
+            float faderProb = rawProb;
+            
+            if (density < 0.5f)
+            {
+                // Globally suppress probabilities down to 0% (Less Notes)
+                float factor = density / 0.5f;
+                faderProb = rawProb * factor;
+            }
+            else if (density > 0.5f)
+            {
+                // Globally boost and fill probabilities up to 100% (More Notes)
+                float factor = (density - 0.5f) / 0.5f;
+                faderProb = rawProb + (1.0f - rawProb) * factor;
+            }
+
             float currentRest = isFreezeActive ? frozenRest : modRest;
             if (juce::Random::getSystemRandom().nextFloat() <= faderProb && !(juce::Random::getSystemRandom().nextFloat() <= currentRest)) {
                 if (mLastNotePlayed != -1) { processedMidi.addEvent (juce::MidiMessage::noteOff (1, mLastNotePlayed), 0); mLastNotePlayed = -1; }
@@ -351,9 +368,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                 float currentChaos = isFreezeActive ? frozenChaos : modChaos;
                 float currentLegato = isFreezeActive ? frozenLegato : modLegato;
                 
-                // Scale global velocity using masterVelocityPtr
-                float masterVel = masterVelocityPtr->load();
-                juce::uint8 scaledVelocity = static_cast<juce::uint8> (juce::jlimit (1, 127, static_cast<int> (127.0f * masterVel)));
+                // Solid, high-contrast velocity striking force (fixed at 100)
+                juce::uint8 scaledVelocity = 100;
 
                 for (auto pitch : pitchList) {
                     int targetPitch = juce::jlimit(0, 127, pitch + (octaveShiftCount * 12) + ((currentChaos > 0.2f && juce::Random::getSystemRandom().nextFloat() <= currentChaos) ? (juce::Random::getSystemRandom().nextBool() ? 12 : -12) : 0));
@@ -458,41 +474,44 @@ void PluginProcessor::resetAccumulator() { accumulatedPitchOffset = 0.0f; }
 
 void PluginProcessor::resetRhythm() 
 { 
-    for (int i = 1; i <= 8; ++i) 
-        apvts.getParameter ("fader" + juce::String(i))->setValueNotifyingHost (1.0f); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    for (int i = 0; i < 8; ++i) 
+        activeScene.faders[i] = 1.0f; 
 }
 
 void PluginProcessor::diceMelody() 
 { 
     auto* r = &juce::Random::getSystemRandom(); 
-    for (int i = 1; i <= 8; ++i) 
-    {
-        apvts.getParameter ("fader" + juce::String(i))->setValueNotifyingHost (r->nextFloat()); 
-    }
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    for (int i = 0; i < 8; ++i) 
+        activeScene.faders[i] = r->nextFloat();
 }
 
 void PluginProcessor::diceArticulation() 
 { 
     auto* r = &juce::Random::getSystemRandom(); 
-    apvts.getParameter (IDs::rest.getParamID())->setValueNotifyingHost (r->nextFloat() * 0.5f); 
-    apvts.getParameter (IDs::legato.getParamID())->setValueNotifyingHost (0.1f + r->nextFloat() * 0.9f); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    activeScene.rest = r->nextFloat() * 0.5f; 
+    activeScene.legato = 0.1f + r->nextFloat() * 0.9f; 
 }
 
 void PluginProcessor::diceTime() 
 { 
     auto* r = &juce::Random::getSystemRandom(); 
-    apvts.getParameter (IDs::rate.getParamID())->setValueNotifyingHost (static_cast<float>(r->nextInt(4)) / 3.0f); 
-    apvts.getParameter (IDs::octaves.getParamID())->setValueNotifyingHost (static_cast<float>(r->nextInt(7)) / 6.0f); 
-    apvts.getParameter (IDs::cycleLength.getParamID())->setValueNotifyingHost (static_cast<float>(r->nextInt(4)) / 3.0f); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    activeScene.rate = static_cast<float> (r->nextInt (4)); 
+    activeScene.octaves = static_cast<float> (r->nextInt (7) - 3); 
+    apvts.getParameter (IDs::cycleLength.getParamID())->setValueNotifyingHost (static_cast<float> (r->nextInt (4)) / 3.0f); 
 }
 
 void PluginProcessor::diceNavy() 
 { 
     auto* r = &juce::Random::getSystemRandom(); 
-    apvts.getParameter (IDs::rhythmMorph.getParamID())->setValueNotifyingHost (r->nextFloat()); 
-    apvts.getParameter (IDs::entropy.getParamID())->setValueNotifyingHost (r->nextFloat()); 
-    apvts.getParameter (IDs::harmony.getParamID())->setValueNotifyingHost (r->nextFloat()); 
-    apvts.getParameter (IDs::chaos.getParamID())->setValueNotifyingHost (r->nextFloat()); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    activeScene.rhythmMorph = r->nextFloat(); 
+    activeScene.entropy = -1.0f + r->nextFloat() * 2.0f; 
+    activeScene.harmony = r->nextFloat(); 
+    activeScene.chaos = r->nextFloat(); 
 }
 
 void PluginProcessor::diceActiveSceneA()
@@ -645,8 +664,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     // Pruned and renamed to three choices: Navy (index 0), Monochrome (index 1), Matrix (index 2)
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::panelTheme, "Panel Theme", juce::StringArray { "Navy", "Monochrome", "Matrix" }, 0));
 
-    // Register Master Parameters
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterVelocity, "Master Velocity", 0.0f, 1.0f, 0.8f)); // Default 80%
+    // Register Master Parameters - Renamed Display Name of IDs::masterVelocity to "Note Density" [1.2.0]
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterVelocity, "Note Density", 0.0f, 1.0f, 0.5f)); // Default 50% (Neutral)
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterSwing, "Master Swing", 0.0f, 1.0f, 0.0f));       // Default 0% (Straight)
 
     auto regLfo = [&](juce::ParameterID rId, juce::ParameterID dId, juce::String nm) {
