@@ -15,20 +15,10 @@ ChromaCapsLookAndFeel::~ChromaCapsLookAndFeel()
 juce::Slider::SliderLayout ChromaCapsLookAndFeel::getSliderLayout (juce::Slider& slider)
 {
     juce::Slider::SliderLayout layout;
-    auto localBounds = slider.getLocalBounds();
     
-    const bool isMasterKnob = (slider.getComponentID() == "masterVelocity" || slider.getComponentID() == "masterSwing");
-
-    if (isMasterKnob)
-    {
-        layout.sliderBounds = localBounds;
-        layout.textBoxBounds = juce::Rectangle<int> (0, 0, 0, 0);
-    }
-    else
-    {
-        layout.sliderBounds = juce::Rectangle<int> (0, 0, localBounds.getWidth(), 86);
-        layout.textBoxBounds = juce::Rectangle<int> (0, 90, localBounds.getWidth(), 26);
-    }
+    // Completely hide standard textboxes to prevent any text overlaps on the vector faceplate
+    layout.sliderBounds = slider.getLocalBounds();
+    layout.textBoxBounds = juce::Rectangle<int> (0, 0, 0, 0);
     
     return layout;
 }
@@ -76,25 +66,16 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     float centerY = localBounds.getCentreY();
     
     const bool isMasterKnob = (cid == "masterVelocity" || cid == "masterSwing");
-    float knobRadius = 24.0f; 
-
-    if (isMasterKnob)
-    {
-        knobRadius = 50.0f; 
-    }
-    else
-    {
-        centerY = 43.0f;
-        knobRadius = 24.0f; 
-    }
-
-    // Tighter LED radius and smaller indicator dot sizes
-    float ledRadius = isMasterKnob ? (knobRadius + 9.0f) : (knobRadius + 6.0f);
-    float ledDiameter = isMasterKnob ? 4.0f : 2.5f;
+    
+    // Scale radii carefully to fit the new 1000 x 681 resolution coordinates
+    float knobRadius = isMasterKnob ? 34.0f : 12.0f;
+    float ledRadius = isMasterKnob ? (knobRadius + 5.0f) : (knobRadius + 3.5f);
+    float ledDiameter = isMasterKnob ? 3.0f : 2.0f;
 
     bool isLeftKnob = (cid == "rhythmMorph" || cid == "rest" || cid == "legato" || cid == "rate" || cid == "masterVelocity");
     juce::Colour activeColor = isLeftKnob ? t.knobFillLeft : t.knobFillRight;
 
+    // Draw the 15 outer LED indicator ring dots
     for (int i = 0; i < 15; ++i)
     {
         float angle = rotaryStartAngle + (static_cast<float> (i) / 14.0f) * (rotaryEndAngle - rotaryStartAngle);
@@ -103,28 +84,29 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
 
         if (i < litCount)
         {
-            float outerRadius = isMasterKnob ? 7.0f : 3.5f;
+            float outerRadius = isMasterKnob ? 5.0f : 3.0f;
             juce::ColourGradient glow (activeColor.withAlpha (0.6f), ledX, ledY,
                                        activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
                                        true);
             g.setGradientFill (glow);
             g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
 
-            float innerRadius = isMasterKnob ? 2.0f : 1.25f;
+            float innerRadius = isMasterKnob ? 1.5f : 1.0f;
             g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.2f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
         else
         {
-            float innerRadius = 0.8f;
+            float innerRadius = 0.6f;
             g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
             g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
     }
 
+    // Draw pointer needle
     float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
     juce::Path path;
-    float pointerThickness = isMasterKnob ? 3.5f : 2.0f;
+    float pointerThickness = isMasterKnob ? 2.5f : 1.5f;
     float pointerLength = knobRadius * 0.65f;
     path.addRectangle (-pointerThickness * 0.5f, -knobRadius + 2.0f, pointerThickness, pointerLength);
     path.applyTransform (juce::AffineTransform::rotation (angle).translated (centerX, centerY));
@@ -142,7 +124,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
 
-    // Hide preset text completely for an invisible visual layer over the physical buttons
+    // Hide preset and Scene text completely to make them transparent interactive hitboxes
     if (isPresetButton || text == "A" || text == "B")
     {
         return; 
@@ -151,10 +133,10 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     if (isUtilButton || isDiceButton)
     {
         auto bounds = button.getLocalBounds().toFloat();
-        auto textRect = bounds.withTrimmedTop (8.0f);
+        auto textRect = bounds.withTrimmedTop (6.0f); 
 
         g.setColour (button.getToggleState() || button.isDown() || button.isMouseOver() ? juce::Colours::white : juce::Colour (0xFF757575));
-        g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions (9.0f, juce::Font::bold));
         g.drawFittedText (text, textRect.toNearestInt(), juce::Justification::centred, 1);
     }
     else if (isStaticTopButton)
@@ -165,7 +147,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
         else
             g.setColour (juce::Colour (0xFFA0A5B0));
 
-        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.drawFittedText (text, bounds.toNearestInt(), juce::Justification::centred, 1);
     }
 }
@@ -184,7 +166,7 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
     {
         float ledWidth = bounds.getWidth() * 0.5f;
         float ledX = (bounds.getWidth() - ledWidth) * 0.5f;
-        auto ledRect = juce::Rectangle<float> (ledX, 4.0f, ledWidth, 2.5f);
+        auto ledRect = juce::Rectangle<float> (ledX, 3.0f, ledWidth, 2.0f);
 
         bool isLit = button.getToggleState() || shouldDrawButtonAsHighlighted || shouldDrawButtonAsDown;
 
@@ -222,48 +204,38 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
         g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.6f));
         g.drawRoundedRectangle (bounds.reduced(0.5f), cornerSize, 1.25f);
     }
-    else if (text == "A" || text == "B")
+    else if (text == "A" || text == "B" || isPresetButton)
     {
-        // Invisible physical layer rendering - only draw a glow when physically active
-        bool isSceneActive = false;
-        if (text == "A") isSceneActive = !processor.isSceneBActive();
-        else if (text == "B") isSceneActive = processor.isSceneBActive();
-        
-        if (isSceneActive || shouldDrawButtonAsDown)
-        {
-            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.15f));
-            g.fillRoundedRectangle (bounds, cornerSize);
-            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.5f));
-            g.drawRoundedRectangle (bounds.reduced (0.5f), cornerSize, 1.25f);
-        }
-        return;
-    }
-    else if (isPresetButton)
-    {
-        // Invisible layer for preset slots 1-8
+        // 100% Invisible layout hitboxes - only lights up with a subtle cyan glow when hovered or clicked
         bool isLit = false;
-        if (auto* editor = dynamic_cast<PluginEditor*> (parentEditor))
-        {
-            int pIdx = text.getIntValue() - 1;
-            if (pIdx >= 0 && pIdx < 8 && editor->presetFlashTimer[pIdx] > 0)
-                isLit = ((editor->presetFlashTimer[pIdx] / 4) % 2 == 1);
+        
+        if (isPresetButton) {
+            if (auto* editor = dynamic_cast<PluginEditor*> (parentEditor)) {
+                int pIdx = text.getIntValue() - 1;
+                if (pIdx >= 0 && pIdx < 8 && editor->presetFlashTimer[pIdx] > 0)
+                    isLit = ((editor->presetFlashTimer[pIdx] / 4) % 2 == 1);
+            }
+        } else {
+            if (text == "A") isLit = !processor.isSceneBActive();
+            if (text == "B") isLit = processor.isSceneBActive();
         }
 
         if (isLit || shouldDrawButtonAsDown)
         {
-            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.25f));
+            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.12f));
             g.fillRoundedRectangle (bounds, cornerSize);
-            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.6f));
-            g.drawRoundedRectangle (bounds.reduced (0.5f), cornerSize, 1.25f);
+            g.setColour (juce::Colour (0xFF00D2FF).withAlpha (0.4f));
+            g.drawRoundedRectangle (bounds.reduced (0.5f), cornerSize, 1.0f);
         }
         else if (shouldDrawButtonAsHighlighted)
         {
             g.setColour (juce::Colours::white.withAlpha (0.04f));
             g.fillRoundedRectangle (bounds, cornerSize);
         }
-        return;
+        return; 
     }
-    else if (isStaticTopButton)
+
+    if (isStaticTopButton)
     {
         if (button.getClickingTogglesState() && button.getToggleState())
         {
@@ -297,7 +269,7 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
 
     if (cid == "morph")
     {
-        const float trackHeight = 8.0f;
+        const float trackHeight = 6.0f;
         const float trackY = static_cast<float>(y) + (static_cast<float>(height) - trackHeight) * 0.5f;
 
         float progress = (sliderPos - static_cast<float>(x)) / static_cast<float>(width);
@@ -305,33 +277,33 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
 
         float alphaA = 1.0f - progress;
         g.setColour (t.crossfaderTrackA.withAlpha (alphaA * 0.6f + 0.15f));
-        g.fillRoundedRectangle (static_cast<float>(x), trackY, sliderPos - static_cast<float>(x), trackHeight, 3.0f);
+        g.fillRoundedRectangle (static_cast<float>(x), trackY, sliderPos - static_cast<float>(x), trackHeight, 2.0f);
 
         float alphaB = progress;
         g.setColour (t.crossfaderTrackB.withAlpha (alphaB * 0.6f + 0.15f));
-        g.fillRoundedRectangle (sliderPos, trackY, static_cast<float>(x + width) - sliderPos, trackHeight, 3.0f);
+        g.fillRoundedRectangle (sliderPos, trackY, static_cast<float>(x + width) - sliderPos, trackHeight, 2.0f);
 
-        // Substantially increased DJ Crossfader Cap width and height
-        const float thumbWidth = 44.0f;
-        const float thumbHeight = 28.0f;
+        // Solid, robust metallic DJ crossfader thumb
+        const float thumbWidth = 24.0f;
+        const float thumbHeight = 20.0f;
         const float thumbX = sliderPos - (thumbWidth * 0.5f);
         const float thumbY = static_cast<float>(y) + (static_cast<float>(height) - thumbHeight) * 0.5f;
 
-        g.setColour (juce::Colours::black.withAlpha (0.5f));
-        g.fillRoundedRectangle (thumbX + 1.0f, thumbY + 3.0f, thumbWidth, thumbHeight, 2.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.4f));
+        g.fillRoundedRectangle (thumbX + 1.0f, thumbY + 2.0f, thumbWidth, thumbHeight, 1.5f);
 
         juce::ColourGradient silverBody (juce::Colour (0xFFECEFF1), thumbX, thumbY,
                                          juce::Colour (0xFF90A4AE), thumbX, thumbY + thumbHeight,
                                          false);
         g.setGradientFill (silverBody);
-        g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f);
+        g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 1.5f);
 
         g.setColour (juce::Colours::white.withAlpha (0.7f));
-        g.drawRoundedRectangle (thumbX + 0.5f, thumbY + 0.5f, thumbWidth - 1.0f, thumbHeight - 1.0f, 2.0f, 1.0f);
+        g.drawRoundedRectangle (thumbX + 0.5f, thumbY + 0.5f, thumbWidth - 1.0f, thumbHeight - 1.0f, 1.5f, 1.0f);
         g.setColour (juce::Colour (0xFF37474F).withAlpha (0.4f));
-        g.drawRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f, 1.0f);
+        g.drawRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 1.5f, 1.0f);
 
-        const float grooveWidth = 6.0f;
+        const float grooveWidth = 4.0f;
         const float grooveHeight = thumbHeight - 4.0f;
         const float grooveX = thumbX + (thumbWidth - grooveWidth) * 0.5f;
         const float grooveY = thumbY + 2.0f;
@@ -344,34 +316,32 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
     }
     else if (isVertical)
     {
-        const float thumbHeight = 18.0f;
-        const float thumbWidth = 26.0f;
+        const float thumbHeight = 12.0f;
+        const float thumbWidth = 18.0f;
         const float thumbX = static_cast<float>(x) + (static_cast<float>(width) - thumbWidth) * 0.5f;
         
+        // Exact travel translation relative to the parent fader bounds (y=583, h=60.4)
         float travelRange = maxSliderPos - minSliderPos;
         float progress = (sliderPos - minSliderPos) / (travelRange > 0.0f ? travelRange : 1.0f);
+        progress = juce::jlimit (0.0f, 1.0f, progress);
         
-        float restrictedMinY = 19.0f;
-        float restrictedMaxY = 102.0f;
-        float restrictedSliderPos = restrictedMinY + progress * (restrictedMaxY - restrictedMinY);
-        
-        const float thumbY = restrictedSliderPos - (thumbHeight * 0.5f);
+        const float thumbY = static_cast<float>(y) + ((1.0f - progress) * (static_cast<float>(height) - thumbHeight));
 
         g.setColour (juce::Colours::black.withAlpha (0.4f));
-        g.fillRoundedRectangle (thumbX + 1.0f, thumbY + 2.0f, thumbWidth, thumbHeight, 2.0f);
+        g.fillRoundedRectangle (thumbX + 1.0f, thumbY + 1.5f, thumbWidth, thumbHeight, 1.5f);
 
         juce::ColourGradient silverBody (juce::Colour (0xFFECEFF1), thumbX, thumbY,
                                          juce::Colour (0xFF90A4AE), thumbX, thumbY + thumbHeight,
                                          false);
         g.setGradientFill (silverBody);
-        g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f);
+        g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 1.5f);
 
         g.setColour (juce::Colours::white.withAlpha (0.7f));
-        g.drawRoundedRectangle (thumbX + 0.5f, thumbY + 0.5f, thumbWidth - 1.0f, thumbHeight - 1.0f, 2.0f, 1.0f);
+        g.drawRoundedRectangle (thumbX + 0.5f, thumbY + 0.5f, thumbWidth - 1.0f, thumbHeight - 1.0f, 1.5f, 1.0f);
         g.setColour (juce::Colour (0xFF37474F).withAlpha (0.4f));
-        g.drawRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 2.0f, 1.0f);
+        g.drawRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 1.5f, 1.0f);
 
-        const float grooveHeight = 4.0f;
+        const float grooveHeight = 3.0f;
         const float grooveWidth = thumbWidth - 4.0f;
         const float grooveX = thumbX + 2.0f;
         const float grooveY = thumbY + (thumbHeight - grooveHeight) * 0.5f;

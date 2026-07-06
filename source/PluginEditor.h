@@ -17,7 +17,7 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     
-    // Renders the coordinate grid on top of all child components (OLED, sliders, buttons) [3]
+    // Renders the coordinate grid on top of all child components (OLED, sliders, buttons)
     void paintOverChildren (juce::Graphics& g) override;
     
     // Tracks real-time cursor coordinates

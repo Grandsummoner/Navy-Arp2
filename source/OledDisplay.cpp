@@ -2,6 +2,9 @@
 #include "PluginProcessor.h"
 #include "AppTheme.h"
 
+// =====================================================================
+// PERSISTENT INSTANCE-SAFE STATE CONTAINER (ZERO HEADER OVERHEAD)
+// =====================================================================
 class CameoState : public juce::ReferenceCountedObject
 {
 public:
@@ -11,14 +14,14 @@ public:
         float startX = 0.0f, startY = 0.0f;
         float targetX = 0.0f, targetY = 0.0f;
         double startTimeMs = 0.0;
-        double durationMs = 0.0;   
+        double durationMs = 0.0;   // Flight duration
         int trajectoryPattern = 0; // 0 = Straight, 1 = Arc, 2 = Jitter
         float arcAmplitude = 0.0f;
     };
     
     std::vector<ActiveCameo> activeCameos;
     double lastCameoTriggerTime = 0.0;
-    double nextCameoInterval = 120000.0; 
+    double nextCameoInterval = 120000.0; // 2 minutes minimum
 
     struct FacetTriangle
     {
@@ -50,7 +53,7 @@ void OledDisplay::showParameterOverlay (const juce::String& paramName, float bas
     isOverlayActive = true;
     
     repaint();
-    startTimer (1500); 
+    startTimer (1500); // 1.5 second display timeout
 }
 
 void OledDisplay::setFreezeActive (bool shouldBeActive)
@@ -169,6 +172,7 @@ void OledDisplay::paint (juce::Graphics& g)
             return { x1, y2, z2 };
         };
 
+        // Center 3D globe vertically inside the upper display area
         float globeCenterX = displayArea.getCentreX(); 
         float globeCenterY = displayArea.getY() + 120.0f; 
         float globeRadius = displayArea.getHeight() * 0.28f;   
@@ -441,8 +445,8 @@ void OledDisplay::paint (juce::Graphics& g)
         const float maxLaddersHeight = (numSegments * segmentHeight) + ((numSegments - 1) * segmentSpacing); 
         float fadersY = bounds.getHeight() - maxLaddersHeight - 25.0f; 
 
-        // Perfectly mapped screen VU meter centers
-        const float relativeCenters[8] = { 65.0f, 194.0f, 323.0f, 452.0f, 581.0f, 710.0f, 839.0f, 968.0f };
+        // Symmetrically aligned with the 1000 x 681 Preset Button centers
+        const float relativeCenters[8] = { 26.0f, 117.0f, 207.0f, 296.0f, 385.0f, 475.0f, 563.0f, 653.0f };
 
         for (int i = 0; i < 8; ++i)
         {

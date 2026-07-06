@@ -27,29 +27,25 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     }
 
     juce::Slider* leftKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob };
-    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
     juce::String leftPrefixes[] = { "rhythmMorph", "rest", "legato", "rate" };
     for (int i = 0; i < 4; ++i) {
         leftKnobs[i]->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag); 
-        leftKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 80, 20); 
+        leftKnobs[i]->setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0); 
         leftKnobs[i]->setLookAndFeel (&chromaLookAndFeel); 
         leftKnobs[i]->setComponentID (leftPrefixes[i]); 
         leftKnobs[i]->addMouseListener (this, false); 
         addAndMakeVisible (leftKnobs[i]);
-        leftTitles[i]->setText ("", juce::dontSendNotification); 
     }
 
     juce::Slider* rightKnobs[] = { &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
-    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
     juce::String rightPrefixes[] = { "entropy", "harmony", "chaos", "octaves" };
     for (int i = 0; i < 4; ++i) {
         rightKnobs[i]->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag); 
-        rightKnobs[i]->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 80, 20); 
+        rightKnobs[i]->setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0); 
         rightKnobs[i]->setLookAndFeel (&chromaLookAndFeel); 
         rightKnobs[i]->setComponentID (rightPrefixes[i]); 
         rightKnobs[i]->addMouseListener (this, false); 
         addAndMakeVisible (rightKnobs[i]);
-        rightTitles[i]->setText ("", juce::dontSendNotification); 
     }
 
     masterVelocityKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
@@ -58,7 +54,6 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     masterVelocityKnob.setComponentID ("masterVelocity");
     masterVelocityKnob.addMouseListener (this, false);
     addAndMakeVisible (masterVelocityKnob);
-    masterVelocityTitle.setText ("", juce::dontSendNotification);
 
     masterSwingKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     masterSwingKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
@@ -66,7 +61,6 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     masterSwingKnob.setComponentID ("masterSwing");
     masterSwingKnob.addMouseListener (this, false);
     addAndMakeVisible (masterSwingKnob);
-    masterSwingTitle.setText ("", juce::dontSendNotification);
 
     morphCrossfader.setSliderStyle (juce::Slider::LinearHorizontal); 
     morphCrossfader.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
@@ -215,7 +209,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     updateSliderTextBoxThemeColors();
 
     setResizable (false, false); 
-    setSize (1519, 1035);
+    setSize (1000, 681); // Matches physical artwork dimension 
 
     if (DRAW_DIAGNOSTIC_GRID)
         setMouseClickGrabsKeyboardFocus (true);
@@ -439,65 +433,69 @@ void PluginEditor::mouseMove (const juce::MouseEvent& event)
 
 void PluginEditor::resized()
 {
-    // Screen bezel
-    oledDisplay.setBounds (243, 91, 1033, 487);
+    // Screen bounds (OLED)
+    oledDisplay.setBounds (157, 57, 680, 320);
 
-    // Left 2x2 group
-    saveButton.setBounds (73, 82, 46, 36); 
-    recallButton.setBounds (124, 82, 46, 36); 
-    copyButton.setBounds (73, 137, 46, 36); 
-    initButton.setBounds (124, 137, 46, 36);
+    // Left 2x2 Utility Grid (Save, Recall, Copy, Init)
+    saveButton.setBounds (31, 49, 33, 28); 
+    recallButton.setBounds (73, 49, 33, 28); 
+    copyButton.setBounds (31, 83, 33, 28); 
+    initButton.setBounds (73, 83, 33, 28);
 
-    // Left column knobs
-    rhythmMorphKnob.setBounds (71, 189, 100, 116);
-    restKnob.setBounds (71, 279, 100, 116);
-    legatoKnob.setBounds (71, 369, 100, 116);
-    rateKnob.setBounds (71, 459, 100, 116);
-    masterVelocityKnob.setBounds (51, 582, 140, 140);
-
-    // Right 2x2 group
-    diceMeloButton.setBounds (1349, 82, 46, 36); 
-    diceArtiButton.setBounds (1400, 82, 46, 36); 
-    diceTimeButton.setBounds (1349, 137, 46, 36); 
-    diceNavyButton.setBounds (1400, 137, 46, 36);
-
-    // Right column knobs
-    entropyKnob.setBounds (1347, 189, 100, 116);
-    harmonyKnob.setBounds (1347, 279, 100, 116);
-    chaosKnob.setBounds (1347, 369, 100, 116);
-    octavesKnob.setBounds (1347, 459, 100, 116);
-    masterSwingKnob.setBounds (1327, 582, 140, 140);
-
-    // Top Dropdowns
-    rootKeyBox.setBounds (243, 26, 100, 36); 
-    scaleTypeBox.setBounds (348, 26, 100, 36); 
-    cycleLengthBox.setBounds (453, 26, 100, 36);
-    panelThemeBox.setBounds (558, 26, 100, 36); 
+    // Left Column small Knobs
+    rhythmMorphKnob.setBounds (52, 129, 32, 32);
+    restKnob.setBounds (52, 190, 32, 32);
+    legatoKnob.setBounds (52, 252, 32, 32);
+    rateKnob.setBounds (52, 314, 32, 32);
     
-    // Top Performance buttons
-    latchButton.setBounds (863, 26, 100, 36); 
-    arpSeqButton.setBounds (968, 26, 100, 36); 
-    polyButton.setBounds (1073, 26, 100, 36); 
-    freezeButton.setBounds (1178, 26, 100, 36);
+    // Left Master Velocity Knob
+    masterVelocityKnob.setBounds (26, 396, 84, 86);
 
-    // Horizontal Crossfader Row
-    sceneAButton.setBounds (275, 607, 90, 90);
-    morphCrossfader.setBounds (380, 626, 759, 30);
-    sceneBButton.setBounds (1153, 607, 90, 90);
+    // Right 2x2 Utility Grid (Melo, Arti, Time, Navy)
+    diceMeloButton.setBounds (888, 48, 33, 28); 
+    diceArtiButton.setBounds (930, 48, 33, 28); 
+    diceTimeButton.setBounds (888, 84, 33, 28); 
+    diceNavyButton.setBounds (930, 84, 33, 28);
 
-    // Invisible Preset Memory Slots (Centered underneath screen)
-    const float presetCenters[8] = { 307.5f, 436.6f, 565.7f, 694.8f, 823.9f, 953.0f, 1082.1f, 1211.2f };
+    // Right Column small Knobs
+    entropyKnob.setBounds (910, 129, 32, 32);
+    harmonyKnob.setBounds (910, 190, 32, 32);
+    chaosKnob.setBounds (910, 252, 32, 32);
+    octavesKnob.setBounds (910, 314, 32, 32);
+    
+    // Right Master Swing Knob
+    masterSwingKnob.setBounds (884, 396, 84, 86);
+
+    // Top Dropdowns (Left)
+    rootKeyBox.setBounds (163, 17, 58, 17); 
+    scaleTypeBox.setBounds (233, 17, 58, 17); 
+    cycleLengthBox.setBounds (304, 17, 58, 17);
+    panelThemeBox.setBounds (374, 17, 58, 17); 
+    
+    // Top Row Performance Buttons (Right)
+    latchButton.setBounds (533, 15, 58, 17); 
+    arpSeqButton.setBounds (602, 15, 58, 17); 
+    polyButton.setBounds (669, 15, 58, 17); 
+    freezeButton.setBounds (738, 15, 58, 17);
+
+    // Crossfader Row
+    sceneAButton.setBounds (214, 396, 67, 58);
+    morphCrossfader.setBounds (336, 415, 321, 28);
+    sceneBButton.setBounds (714, 396, 67, 58);
+
+    // Invisible Preset Memory Slots (1-8)
+    const float presetX[8] = { 145.0f, 236.0f, 326.0f, 415.0f, 504.0f, 594.0f, 682.0f, 772.0f };
     for (int i = 0; i < 8; ++i) 
     {
-        presetButtons[i].setBounds (static_cast<int>(presetCenters[i]) - 45, 725, 90, 90);
+        presetButtons[i].setBounds (static_cast<int>(presetX[i]), 477, 76, 65);
     }
 
-    // Vertical Faders (Distributed across full bottom width)
-    const float faderCenters[8] = { 121.5f, 303.8f, 486.1f, 668.4f, 850.7f, 1033.0f, 1215.3f, 1397.5f };
+    // Vertical Upfaders (1-8)
+    const float faderX[8] = { 66.0f, 192.0f, 314.0f, 436.0f, 556.0f, 678.0f, 802.0f, 923.0f };
     juce::Slider* faderPtrs[] = { &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8 };
     for (int i = 0; i < 8; ++i) 
     {
-        faderPtrs[i]->setBounds (static_cast<int>(faderCenters[i]) - 15, 874, 30, 120);
+        faderPtrs[i]->setBounds (static_cast<int>(faderX[i]) - 6, 583, 24, 60);
     }
 }
 
@@ -549,7 +547,7 @@ void PluginEditor::timerCallback()
 
     if (!rhythmMorphKnob.isMouseButtonDown()) rhythmMorphKnob.setValue (interpolate (processor.sceneA.rhythmMorph, processor.sceneB.rhythmMorph), juce::dontSendNotification);
     if (!restKnob.isMouseButtonDown())        restKnob.setValue (interpolate (processor.sceneA.rest,        processor.sceneB.rest),        juce::dontSendNotification);
-    if (!legatoKnob.isMouseButtonDown())      legatoKnob.setValue (interpolate (processor.sceneA.legato,    processor.sceneB.legato),      juce::dontSendNotification);
+    if (!legatoKnob.isMouseButtonDown())      legatoKnob.setValue (interpolate (processor.sceneA.decay,      processor.sceneB.legato),      juce::dontSendNotification);
     if (!rateKnob.isMouseButtonDown())        rateKnob.setValue (interpolate (processor.sceneA.rate,        processor.sceneB.rate),        juce::dontSendNotification);
     if (!entropyKnob.isMouseButtonDown())     entropyKnob.setValue (interpolate (processor.sceneA.entropy,   processor.sceneB.entropy),   juce::dontSendNotification);
     if (!harmonyKnob.isMouseButtonDown())     harmonyKnob.setValue (interpolate (processor.sceneA.harmony,   processor.sceneB.harmony),   juce::dontSendNotification);
@@ -606,14 +604,4 @@ void PluginEditor::updateSliderTextBoxThemeColors()
         k->setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xFF0F1116)); 
         k->setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack); 
     }
-
-    masterVelocityKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    masterSwingKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-
-    juce::Label* leftTitles[] = { &rhythmMorphTitle, &restTitle, &legatoTitle, &rateTitle };
-    juce::Label* rightTitles[] = { &entropyTitle, &harmonyTitle, &chaosTitle, &octavesTitle };
-    for (auto* title : leftTitles)
-        title->setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
-    for (auto* title : rightTitles)
-        title->setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
 }
