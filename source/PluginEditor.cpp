@@ -649,14 +649,14 @@ void PluginEditor::paintOverChildren (juce::Graphics& g)
     juce::String swgText = "SWG: " + juce::String (static_cast<int> (std::round (masterSwingKnob.getValue() * 100.0f))) + "%";
     g.drawFittedText (swgText, swgBox, juce::Justification::centred, 1);
 
-    // 3. Draw static, high-contrast white "MEMORY SLOTS" label under the buttons [1.2.3]
+    // 3. Draw static, high-contrast white "MEMORY SLOTS" label spaced out under buttons 3 to 6 [1.2.3]
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions ("Courier New", 11.0f, juce::Font::bold));
-    g.drawText ("MEMORY SLOTS", 0, 552, 1000, 16, juce::Justification::centred);
+    g.drawText ("M  E  M  O  R  Y     S  L  O  T  S", 326, 552, 344, 16, juce::Justification::centred);
 
-    // 4. Draw static "NAVY-ARP MONITOR" stamped onto physical panel [1.2.3]
-    g.setColour (themeColor.withAlpha (0.5f));
-    g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
+    // 4. Draw static "NAVY-ARP MONITOR" stamped onto physical panel with enhanced presence [1.2.3]
+    g.setColour (themeColor.withAlpha (0.85f));
+    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
     g.drawText ("NAVY-ARP MONITOR", 157, 381, 680, 15, juce::Justification::centred, true);
 }
 

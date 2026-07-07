@@ -314,8 +314,8 @@ void OledDisplay::paint (juce::Graphics& g)
 
         juce::String metaText = "SYSTEM STATUS: ACTIVE | KEY: " + keyStr + " | SCALE: " + scaleStr.toUpperCase() + " | TEMPO: " + tempoSourceText + " | VOICING: " + voiceStr;
 
-        // Shifted status bar parameters to absolute top of OLED inside box boundary
-        g.setColour (juce::Colour (0xFF00FF66).withAlpha (0.85f)); 
+        // Metadata bar dynamically follows the selected color theme instead of hardcoded matrix green
+        g.setColour (themeColor.withAlpha (0.85f)); 
         g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.drawText (metaText, displayArea.withY (displayArea.getY() + 8.0f).withHeight (15.0f), juce::Justification::centred, true);
 
