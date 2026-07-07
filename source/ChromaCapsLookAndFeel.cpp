@@ -444,8 +444,8 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         float endX = static_cast<float>(x + width);
         float totalW = static_cast<float>(width);
 
-        // Minimal visual travel shortening by exactly 2% on both ends [1.2.2]
-        float margin = totalW * 0.02f;
+        // Visual travel shortened by exactly 5% on both ends to hide the orange strip at extremes [1.2.3]
+        float margin = totalW * 0.05f;
         float activeStartX = startX + margin;
         float activeEndX = endX - margin;
         float activeW = totalW - (margin * 2.0f);
@@ -464,9 +464,9 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         g.setColour (t.crossfaderTrackB.withAlpha (alphaB * 0.6f + 0.15f));
         g.fillRoundedRectangle (visualThumbX, trackY, endX - visualThumbX, trackHeight, 2.0f);
 
-        // Crossfader cap is drawn bigger and taller [1.2.2]
+        // Crossfader cap drawn bigger and taller [1.2.2]
         const float thumbWidth = 32.0f;  // Increased from 24.0f
-        const float thumbHeight = 32.0f; // Increased from 20.0f (reaches outside track bounds)
+        const float thumbHeight = 32.0f; // Increased from 20.0f (extends nicely outside track bounds)
         const float thumbX = visualThumbX - (thumbWidth * 0.5f);
         const float thumbY = static_cast<float>(y) + (static_cast<float>(height) - thumbHeight) * 0.5f;
 
