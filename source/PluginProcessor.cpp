@@ -261,13 +261,13 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     isCurrentlyPlayingUI.store (!notesToPlay.empty() || isFreezeActive);
 
     if (!notesToPlay.empty() || isFreezeActive) {
-        bool stepTriggered = false; double samplesPerBeat = mSampleRate * (60.0 / (activeBpm > 0 ? activeBpm : 120.0));
+        bool stepTriggered = false; double samplesPerBeat = mSampleRate * (60.0 / (bpm > 0 ? bpm : 120.0));
         
         // Synced subdivision triggers vs Free-Run grid timing [1.2.3]
         int currentRate = isFreezeActive ? frozenRateIdx : activeRateIdx;
         double stepLengthPPQ = 0.25; // Default 1/16 notes for free-run mode
         if (syncActive) {
-            stepLengthPPQ = (currentRate == 0) ? 1.0 : (currentRate == 1) ? 0.5 : (currentRate == 2) ? 0.25 : 0.125;
+            stepLengthPPQ = (currentRate == 0) ? 1.0 : (currentRate == 2) ? 0.5 : (currentRate == 3) ? 0.25 : 0.125;
         }
         
         double stepSamples = samplesPerBeat * stepLengthPPQ;
@@ -285,7 +285,6 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             double periodIndex = std::floor (ppqNormalized / periodLengthPPQ);
             
             int stepIndexWithinPeriod = (positionInPeriod >= (stepLengthPPQ + swingAmtPPQ)) ? 1 : 0;
-            int absoluteStepIndex = static_cast<int> (periodIndex) * 2 + stepIndexWithinPeriod;
             int stepIndex = absoluteStepIndex % 8;
 
             if (stepIndex != mLastStep) { 
@@ -448,8 +447,14 @@ void PluginProcessor::savePreset (int slotIndex)
 { 
     if (slotIndex >= 0 && slotIndex < 8) 
     { 
-        sceneAPresets[slotIndex] = sceneA; sceneBPresets[slotIndex] = sceneB;
-        sceneASlotsSaved[slotIndex] = hasSceneA; sceneBSlotsSaved[slotIndex] = hasSceneB;
+        // Force state presence to true so that saved data is always parsed and reloaded cleanly
+        hasSceneA = true;
+        hasSceneB = true;
+        sceneASlotsSaved[slotIndex] = true; 
+        sceneBSlotsSaved[slotIndex] = true;
+
+        sceneAPresets[slotIndex] = sceneA; 
+        sceneBPresets[slotIndex] = sceneB;
 
         for (int i = 0; i < 8; ++i) presets[slotIndex].faders[i] = faderPtrs[i]->load(); 
         presets[slotIndex].rhythmMorph = rhythmMorphPtr->load(); 

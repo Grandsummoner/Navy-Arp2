@@ -36,6 +36,9 @@ public:
 PluginEditor::PluginEditor (PluginProcessor& p)
     : AudioProcessorEditor (&p), processor (p), oledDisplay (p), chromaLookAndFeel (p, this)
 {
+    // Protect active scene state from being corrupted by initial attachment-triggered value-changes [1.2.3]
+    getProperties().set ("isUpdatingProgrammatically", true);
+
     backgroundImage = juce::ImageCache::getFromMemory (BinaryData::panel_png, 
                                                        BinaryData::panel_pngSize);
 
@@ -343,6 +346,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     for (auto* s : allSliders) {
         s->toFront (false);
     }
+
+    // Release programmatic update protection flag now that initialization and attachments are loaded
+    getProperties().set ("isUpdatingProgrammatically", false);
 
     startTimerHz (30);
 }
