@@ -49,17 +49,3 @@ Switch between three visual themes dynamically to match your environment:
 * **Matrix:** Glowing Neon Green indicators with Hot Magenta LFO backlights.
 
 ---
-
-## DAW Integration & System Stability
-
-* **Reliable State Recall:** Built to resolve common session recall issues on DAW restart, Navy Arp 2 saves the active state of both Scene A and Scene B, your global bank presets, and your active LFO speeds, ensuring your project loads exactly as you left it—including tested stability under **Ableton Live**.
-* **Collapsible Sidecar Cheat Sheet:** Click the `?` icon in the top-right corner to temporarily expand the plugin window. A clean, easy-to-read, monospace manual slips out on the right with colored "Island Pill" headers (Coral, Violet, Cyan, Amber) to give you a quick-start guide on the fly. Click the toggle again to collapse it.
-
----
-
-## Installation & Setup
-
-1. Copy the `Navy Arp.vst3` file into your system's standard VST3 directory:
-   * **Windows:** `C:\Program Files\Common Files\VST3\`
-2. Rescan plugins inside your DAW.
-3. Insert **Navy Arp 2** on a MIDI track, route its MIDI output to your favorite software synthesizer, and begin sequencing!
