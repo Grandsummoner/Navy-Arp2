@@ -608,7 +608,8 @@ void PluginEditor::paintOverChildren (juce::Graphics& g)
         g.fillRect (boxX, boxY, boxW, boxH);
 
         // FREEZE TEXT LABELS AS STATIC [2]
-        // Swapping to a progress bar during drag is disabled to preserve analog knob pointer aesthetics.
+        // Swapping to a progress bar or drawing micro-LEDs here is disabled.
+        // The LFO feedback has shifted to the Under-Cap Corona Ring.
         g.setColour (themeColor.withAlpha (0.75f));
         g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
         g.drawFittedText (smallLabels[i], boxX, boxY, boxW, boxH, juce::Justification::centred, 1);

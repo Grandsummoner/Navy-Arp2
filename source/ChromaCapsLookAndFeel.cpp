@@ -1,4 +1,3 @@
-/* STREAMING_CHUNK: Importing dependencies and look-and-feel variables... */
 #include "ChromaCapsLookAndFeel.h"
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
@@ -17,14 +16,13 @@ juce::Slider::SliderLayout ChromaCapsLookAndFeel::getSliderLayout (juce::Slider&
 {
     juce::Slider::SliderLayout layout;
     
-    // Decouple textbox to prevent collision with custom drawing
+    // Completely hide standard textboxes to prevent any text overlaps on the vector faceplate
     layout.sliderBounds = slider.getLocalBounds();
     layout.textBoxBounds = juce::Rectangle<int> (0, 0, 0, 0);
     
     return layout;
 }
 
-/* STREAMING_CHUNK: Drawing the rotary slider and center jewel LED... */
 void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                                               float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                                               juce::Slider& slider)
@@ -66,21 +64,49 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     float centerY = localBounds.getCentreY();
     
     const bool isMasterKnob = (cid == "masterVelocity" || cid == "masterSwing");
+    const bool isSmallKnob = !isMasterKnob;
+
     float knobRadius = isMasterKnob ? 34.0f : 12.0f;
     float ledRadius = isMasterKnob ? (knobRadius + 5.0f) : (knobRadius + 3.5f);
-    float ledDiameter = isMasterKnob ? 5.0f : 2.0f;
+    float ledDiameter = isMasterKnob ? 3.0f : 2.0f;
 
-    // Base active themes configuration
+    // Colour One (Primary Accent): Palette routing matching active chosen panel theme
     juce::Colour activeColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
-    if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White
+    if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
     else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Neon Green
 
-    juce::Colour lfoHaloColor = juce::Colour (0xFFFF6D00); // Theme 0 (Navy): Orange
-    if (themeIdx == 1)      lfoHaloColor = juce::Colour (0xFF00E5FF); // Theme 1 (Monochrome): Tech Cyan
-    else if (themeIdx == 2) lfoHaloColor = juce::Colour (0xFFD500F9); // Theme 2 (Matrix): Hot Magenta
+    // Colour Two (LFO Contrast Accent): Used for the Right Column knob halos
+    juce::Colour lfoHaloColor = juce::Colour (0xFFFF6D00); // Navy Contrast: Amber/Orange
+    if (themeIdx == 1)      lfoHaloColor = juce::Colour (0xFF00E5FF); // Monochrome Contrast: Tech Cyan
+    else if (themeIdx == 2) lfoHaloColor = juce::Colour (0xFFD500F9); // Matrix Contrast: Hot Purple/Magenta
 
-    // 1. Draw custom rotating metallic knob cap over the background PNG
-    g.setColour (juce::Colour (0xFF1F2229)); 
+    // 1. Draw Custom LFO "Corona / Halo" Underglow Ring (Only for Small Knobs with an active LFO)
+    if (isSmallKnob && isLfoActive)
+    {
+        float glowOuterRadius = 17.0f; // Extends past the 12.0f knob radius to bleed onto the faceplate
+        juce::Colour jewelGlowColor = (lfoIndex < 4) ? activeColor : lfoHaloColor;
+
+        // Logarithmic / Square root boost so subtle depth levels (e.g. 10%) are instantly visible
+        float boostedDepth = std::sqrt (depth);
+        float pulseFactor = 0.25f + 0.75f * static_cast<float> (0.5 + 0.5 * std::sin (currentPhase * juce::MathConstants<double>::twoPi));
+        float glowAlpha = boostedDepth * pulseFactor * 0.90f;
+
+        // Multi-stop radial gradient: transparent in the center, peaking at the cap rim, fading out on faceplate
+        juce::ColourGradient coronaGrad (juce::Colours::transparentBlack, centerX, centerY,
+                                         juce::Colours::transparentBlack, centerX, centerY + glowOuterRadius,
+                                         true);
+        
+        coronaGrad.addColour (0.0,  jewelGlowColor.withAlpha (0.0f));
+        coronaGrad.addColour (0.55, jewelGlowColor.withAlpha (0.0f));       // Kept transparent under the center cap
+        coronaGrad.addColour (0.75, jewelGlowColor.withAlpha (glowAlpha));  // Peaks right at the cap bezel transition (12.75px)
+        coronaGrad.addColour (1.0,  jewelGlowColor.withAlpha (0.0f));       // Diffuses out smoothly on the panel faceplate
+        
+        g.setGradientFill (coronaGrad);
+        g.fillEllipse (centerX - glowOuterRadius, centerY - glowOuterRadius, glowOuterRadius * 2.0f, glowOuterRadius * 2.0f);
+    }
+
+    // 2. Draw custom rotating metallic knob cap (Drawn over the gradient to mask its center)
+    g.setColour (juce::Colour (0xFF1F2229)); // Bezel base
     g.fillEllipse (centerX - knobRadius, centerY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f);
 
     juce::ColourGradient steelGrad (juce::Colour (0xFFECEFF1), centerX, centerY - knobRadius,
@@ -96,42 +122,9 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
     g.setColour (juce::Colours::white.withAlpha (0.15f));
     g.fillPath (reflectPath);
 
-    /* STREAMING_CHUNK: Designing physical hardware Center Jewel indicator lens... */
-    float jewelRadius = isMasterKnob ? 4.5f : 2.2f;
+    // [Needle Pointer Deleted] - No pointers drawn over the clean metallic surface.
 
-    // Draw glossy unlit core structure
-    g.setColour (juce::Colour (0xFF0C0E14));
-    g.fillEllipse (centerX - jewelRadius, centerY - jewelRadius, jewelRadius * 2.0f, jewelRadius * 2.0f);
-
-    if (isLfoActive && lfoIndex != -1)
-    {
-        // 2-Color symmetric split: Left column knobs use activeColor, Right column knobs use lfoHaloColor
-        juce::Colour jewelGlowColor = (lfoIndex < 4) ? activeColor : lfoHaloColor;
-
-        // Pulse intensity matches real-time LFO speed and scales in maximum glow ceiling with LFO Depth
-        float pulseFactor = 0.25f + 0.75f * static_cast<float> (0.5 + 0.5 * std::sin (currentPhase * juce::MathConstants<double>::twoPi));
-        float glowAlpha = depth * pulseFactor;
-
-        // Draw active dynamic emissive glowing core
-        g.setColour (jewelGlowColor.withAlpha (juce::jlimit (0.1f, 0.95f, glowAlpha)));
-        g.fillEllipse (centerX - jewelRadius, centerY - jewelRadius, jewelRadius * 2.0f, jewelRadius * 2.0f);
-
-        // Render specular lens reflections on active jewel
-        g.setColour (juce::Colours::white.withAlpha (0.4f + 0.4f * glowAlpha));
-        g.fillEllipse (centerX - jewelRadius * 0.4f, centerY - jewelRadius * 0.4f, jewelRadius * 0.6f, jewelRadius * 0.6f);
-    }
-    else
-    {
-        // Standard unlit glass specular reflections (Default metals / master knobs)
-        g.setColour (juce::Colours::white.withAlpha (0.12f));
-        g.fillEllipse (centerX - jewelRadius * 0.4f, centerY - jewelRadius * 0.4f, jewelRadius * 0.6f, jewelRadius * 0.6f);
-    }
-
-    /* STREAMING_CHUNK: Customizing discrete 15-dot ring pointer index logic... */
-    float minSweep = juce::jlimit (0.0f, 1.0f, sliderPos - depth * 0.5f);
-    float maxSweep = juce::jlimit (0.0f, 1.0f, sliderPos + depth * 0.5f);
-
-    bool isDragging = (slider.getThumbBeingDragged() >= 0);
+    // 3. Draw the Concentric LED Ring (Strictly displays exactly ONE lit indicator LED in active theme color) [2]
     int closestLedIndex = static_cast<int> (std::round (sliderPos * 14.0f));
 
     for (int i = 0; i < 15; ++i)
@@ -140,60 +133,26 @@ void ChromaCapsLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, i
         float ledX = centerX + ledRadius * std::sin (ledAngle) - ledDiameter * 0.5f;
         float ledY = centerY - ledRadius * std::cos (ledAngle) - ledDiameter * 0.5f;
 
-        float ledProportion = static_cast<float> (i) / 14.0f;
-
-        if (isLfoActive && !isDragging)
+        if (i == closestLedIndex)
         {
-            // IDLE MODULATED STATE: Keep sweep bracket in high-contrast LFO color representing modulation range
-            if (ledProportion >= minSweep && ledProportion <= maxSweep)
-            {
-                float outerRadius = isMasterKnob ? 5.0f : 3.0f;
-                juce::ColourGradient glow (lfoHaloColor.withAlpha (0.8f), ledX, ledY,
-                                           lfoHaloColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
-                                           true);
-                g.setGradientFill (glow);
-                g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
+            // The single active dial position index dot glows sharply
+            float outerRadius = isMasterKnob ? 5.0f : 3.0f;
+            juce::ColourGradient glow (activeColor.withAlpha (0.85f), ledX, ledY,
+                                       activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
+                                       true);
+            g.setGradientFill (glow);
+            g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
 
-                float innerRadius = isMasterKnob ? 2.0f : 1.25f;
-                g.setColour (juce::Colours::white.interpolatedWith (lfoHaloColor, 0.1f));
-                g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
-            }
-            // Draw baseline original center setting as a discrete single soft dim white indicator LED
-            else if (i == closestLedIndex)
-            {
-                float innerRadius = isMasterKnob ? 1.5f : 1.0f;
-                g.setColour (juce::Colours::white.withAlpha (0.85f));
-                g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
-            }
-            else
-            {
-                float innerRadius = 0.6f;
-                g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
-                g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
-            }
+            float innerRadius = isMasterKnob ? 2.0f : 1.25f;
+            g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.15f));
+            g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
         else
         {
-            // DRAGGING OR UNMODULATED STATE: Only ONE single discrete LED is active corresponding to the value [2]
-            if (i == closestLedIndex)
-            {
-                float outerRadius = isMasterKnob ? 5.0f : 3.0f;
-                juce::ColourGradient glow (activeColor.withAlpha (0.85f), ledX, ledY,
-                                           activeColor.withAlpha (0.0f), ledX + outerRadius, ledY + outerRadius,
-                                           true);
-                g.setGradientFill (glow);
-                g.fillEllipse (ledX - outerRadius, ledY - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
-
-                float innerRadius = isMasterKnob ? 2.0f : 1.25f;
-                g.setColour (juce::Colours::white.interpolatedWith (activeColor, 0.15f));
-                g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
-            }
-            else
-            {
-                float innerRadius = 0.6f;
-                g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
-                g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
-            }
+            // Faint, unlit background dots
+            float innerRadius = 0.6f;
+            g.setColour (juce::Colour (0xFF1F2229).withAlpha (0.25f));
+            g.fillEllipse (ledX - innerRadius, ledY - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
         }
     }
 }
@@ -317,8 +276,8 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
     const juce::String text = button.getButtonText();
     const bool isUtilButton = (text == "Save" || text == "Recall" || text == "Copy" || text == "Init");
     const bool isDiceButton = (text == "Melo" || text == "Arti" || text == "Time" || text == "Navy");
-    const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
+    const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
 
     int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
 
