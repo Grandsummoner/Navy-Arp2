@@ -295,6 +295,15 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     updateSliderTextBoxThemeColors();
 
+    // Setup collapsible Help Sidebar toggle button [3]
+    addAndMakeVisible (helpButton);
+    helpButton.setButtonText ("?");
+    helpButton.setClickingTogglesState (true);
+    helpButton.onClick = [this] { toggleHelpPanel(); };
+    helpButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF181C20));
+    helpButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xFFA0A5B0));
+    helpButton.setColour (juce::TextButton::textColourOnId, juce::Colours::white);
+
     // Explicitly enable double-click to reset parameters to default values [1.2.1]
     rhythmMorphKnob.setDoubleClickReturnValue (true, 0.0f);
     restKnob.setDoubleClickReturnValue (true, 0.1f);
@@ -368,6 +377,23 @@ PluginEditor::~PluginEditor()
 
     // Dynamic clean up of property-wrapped syncButton [1.2.3]
     getProperties().remove ("syncWrapper");
+}
+
+void PluginEditor::toggleHelpPanel()
+{
+    isHelpPanelOpen = !isHelpPanelOpen;
+    helpButton.setToggleState (isHelpPanelOpen, juce::dontSendNotification);
+    
+    // Set appropriate color theme highlights when help is active
+    int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+    juce::Colour activeColor = juce::Colour (0xFF00E5FF); 
+    if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); 
+    else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66); 
+    
+    helpButton.setColour (juce::TextButton::buttonColourId, isHelpPanelOpen ? activeColor : juce::Colour (0xFF181C20));
+    helpButton.setColour (juce::TextButton::textColourOffId, isHelpPanelOpen ? juce::Colours::black : juce::Colour (0xFFA0A5B0));
+
+    setSize (isHelpPanelOpen ? 1300 : 1000, 681);
 }
 
 void PluginEditor::parameterChanged (const juce::String& parameterID, float newValue)
@@ -531,12 +557,98 @@ void PluginEditor::paint (juce::Graphics& g)
 {
     if (backgroundImage.isValid())
     {
-        g.drawImage (backgroundImage, getLocalBounds().toFloat(), 
-                     juce::RectanglePlacement::stretchToFit);
+        // Paint main background panel inside the left 1000px boundary
+        g.drawImage (backgroundImage, 0, 0, 1000, 681, 
+                     0, 0, backgroundImage.getWidth(), backgroundImage.getHeight());
     }
     else
     {
         g.fillAll (juce::Colour (0xFF0D1E36));
+    }
+
+    // Render Sidecar Manual Component dynamically inside the exposed right 300px column
+    if (getWidth() > 1000)
+    {
+        int sidebarX = 1000;
+        int sidebarW = getWidth() - sidebarX;
+
+        // Fill background matching high-tech OLED theme
+        g.setColour (juce::Colour (0xFF05070A));
+        g.fillRect (sidebarX, 0, sidebarW, getHeight());
+
+        // Select color routing matching active panel theme
+        int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
+        juce::Colour activeColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
+        if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White
+        else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Neon Green
+
+        g.setColour (activeColor.withAlpha (0.4f));
+        g.drawVerticalLine (sidebarX, 0.0f, static_cast<float> (getHeight()));
+
+        // Document Title
+        g.setColour (juce::Colours::white);
+        g.setFont (juce::FontOptions ("Courier New", 14.0f, juce::Font::bold));
+        g.drawText ("[ QUICK-START CHEAT SHEET ]", sidebarX + 15, 20, sidebarW - 30, 20, juce::Justification::centredLeft);
+
+        // Section descriptors for the 4 island pills [3]
+        struct HelpSection {
+            juce::String title;
+            juce::String body;
+            juce::Colour pillColor;
+            int yPos;
+        };
+
+        std::vector<HelpSection> sections = {
+            { 
+                "01 // SNAPSHOT MORPHING", 
+                "- Select snap [A] or [B] deck focus.\n- Tweaks/dice write only to active deck.\n- Drag CROSSFADER to morph the DSP.", 
+                juce::Colour (0xFFFF3366), // Coral Pink
+                60 
+            },
+            { 
+                "02 // SATELLITE LFO ROUTING", 
+                "- Right-click small dials for LFO setup.\n- Rate & depth show on backlit Corona.\n- Pulse = Speed; Brightness = LFO Depth.", 
+                juce::Colour (0xFFD500F9), // Electric Violet
+                205 
+            },
+            { 
+                "03 // NOTE DENSITY (DEN)", 
+                "- Global modifier on bottom-left.\n- Below 50%: reduces note probabilities.\n- Above 50%: fills empty steps.", 
+                juce::Colour (0xFF00E5FF), // Teal
+                350 
+            },
+            { 
+                "04 // PERFORMANCE PRESETS", 
+                "- Click SAVE + slots 1-8 to record.\n- Click RECALL to latch preset surf.\n- Double-click dials to reset to center.", 
+                juce::Colour (0xFFFFB300), // Warm Gold
+                495 
+            }
+        };
+
+        for (const auto& sec : sections)
+        {
+            int rx = sidebarX + 15;
+            int ry = sec.yPos;
+            int rw = sidebarW - 30; // 270px
+            int rh = 22;
+
+            // Render Rounded "Island Pill" Header container
+            g.setColour (sec.pillColor.withAlpha (0.12f));
+            g.fillRoundedRectangle (static_cast<float> (rx), static_cast<float> (ry), static_cast<float> (rw), static_cast<float> (rh), 4.0f);
+            
+            g.setColour (sec.pillColor.withAlpha (0.80f));
+            g.drawRoundedRectangle (static_cast<float> (rx), static_cast<float> (ry), static_cast<float> (rw), static_cast<float> (rh), 4.0f, 1.0f);
+
+            // Print monospace text inside pill (High contrast white)
+            g.setColour (juce::Colours::white);
+            g.setFont (juce::FontOptions ("Courier New", 11.0f, juce::Font::bold));
+            g.drawText (sec.title, rx + 10, ry, rw - 20, rh, juce::Justification::centredLeft);
+
+            // Section body bulleted texts below pill
+            g.setColour (juce::Colour (0xFFA0A5B0));
+            g.setFont (juce::FontOptions ("Courier New", 11.0f, juce::Font::plain));
+            g.drawFittedText (sec.body, rx + 5, ry + rh + 8, rw - 10, 100, juce::Justification::topLeft, 4);
+        }
     }
 }
 
@@ -608,8 +720,7 @@ void PluginEditor::paintOverChildren (juce::Graphics& g)
         g.fillRect (boxX, boxY, boxW, boxH);
 
         // FREEZE TEXT LABELS AS STATIC [2]
-        // Swapping to a progress bar or drawing micro-LEDs here is disabled.
-        // The LFO feedback has shifted to the Under-Cap Corona Ring.
+        // Swapping to a progress bar during drag is disabled to preserve analog knob pointer aesthetics.
         g.setColour (themeColor.withAlpha (0.75f));
         g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
         g.drawFittedText (smallLabels[i], boxX, boxY, boxW, boxH, juce::Justification::centred, 1);
@@ -705,6 +816,9 @@ void PluginEditor::resized()
     polyButton.setBounds (669, 15, 58, 17); 
     freezeButton.setBounds (738, 15, 58, 17);
     
+    // Position "?" Help toggler at top far-right of panel dropdowns row
+    helpButton.setBounds (965, 15, 18, 18);
+
     // Safety boundaries set dynamically using property fetches for wrapped syncButton [1.2.3]
     auto syncWrapper = SyncButtonWrapper::Ptr (dynamic_cast<SyncButtonWrapper*> (getProperties()["syncWrapper"].getObject()));
     if (syncWrapper != nullptr)
@@ -824,7 +938,7 @@ void PluginEditor::timerCallback()
 
     // OLED Parameter HUD Overlay Triggering with Standard 3-Argument Signature [1.2.3]
     juce::Slider* smallKnobs[] = { &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob, &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob };
-    juce::String smallNames[] = { "Rhythm Morph", "Rest", "Legato", "BPM" /* Renamed to BPM overlay [1.2.3] */, "Entropy", "Harmony", "Chaos", "Octaves" };
+    juce::String smallNames[] = { "Rhythm Morph", "Rest", "Legato", "BPM", "Entropy", "Harmony", "Chaos", "Octaves" };
     for (int i = 0; i < 8; ++i)
     {
         if (smallKnobs[i]->getThumbBeingDragged() >= 0)

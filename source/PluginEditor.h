@@ -65,6 +65,11 @@ public:
     // Top Control bar Dropdowns
     juce::ComboBox rootKeyBox, scaleTypeBox, cycleLengthBox, panelThemeBox;
 
+    // Help Sidebar UI Toggle Members [3]
+    juce::TextButton helpButton;
+    bool isHelpPanelOpen = false;
+    void toggleHelpPanel();
+
     // Public Flash Timers for LookAndFeel Animation Access
     int sceneAFlashTimer = 0;
     int sceneBFlashTimer = 0;
