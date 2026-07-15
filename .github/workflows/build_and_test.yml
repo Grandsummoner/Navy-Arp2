@@ -112,10 +112,10 @@ jobs:
           echo "STANDALONE_EXE_PATH=$ARTIFACTS_PATH/Standalone/${{ env.PRODUCT_NAME }}.exe" >> $GITHUB_ENV
           echo "ARTIFACT_NAME=${{ env.PRODUCT_NAME }}-${{ env.VERSION }}-Windows" >> $GITHUB_ENV
 
-      # Test the VST3 using pluginval (v1.0.5 recommended for JUCE 8+)
+      # Test the VST3 using pluginval v1.0.4 (latest stable)
       - name: Pluginval
         run: |
-          curl -LO "https://github.com/Tracktion/pluginval/releases/download/v1.0.5/pluginval_Windows.zip"
+          curl -LO "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip"
           7z x pluginval_Windows.zip
           "${{ env.PLUGINVAL_BINARY }}" --strictness-level 10 --verbose --validate "${{ env.VST3_PATH }}"
 
