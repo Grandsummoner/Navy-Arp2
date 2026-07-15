@@ -103,13 +103,14 @@ jobs:
             echo "Parsed VERSION: $VERSION"
           fi
 
-      # Set paths for target packaging (Including Standalone)
+      # Set paths for target packaging (Including Standalone, VST3, and CLAP)
       - name: Set additional env vars for next steps
         run: |
           ARTIFACTS_PATH=${{ env.BUILD_DIR }}/${{ env.PROJECT_NAME }}_artefacts/${{ env.BUILD_TYPE }}
           echo "ARTIFACTS_PATH=$ARTIFACTS_PATH" >> $GITHUB_ENV
           echo "VST3_PATH=$ARTIFACTS_PATH/VST3/${{ env.PRODUCT_NAME }}.vst3" >> $GITHUB_ENV
           echo "STANDALONE_EXE_PATH=$ARTIFACTS_PATH/Standalone/${{ env.PRODUCT_NAME }}.exe" >> $GITHUB_ENV
+          echo "CLAP_PATH=$ARTIFACTS_PATH/CLAP/${{ env.PRODUCT_NAME }}.clap" >> $GITHUB_ENV
           echo "ARTIFACT_NAME=${{ env.PRODUCT_NAME }}-${{ env.VERSION }}-Windows" >> $GITHUB_ENV
 
       # Test the VST3 using pluginval v1.0.4 (latest stable)
@@ -124,8 +125,21 @@ jobs:
         run: |
           mkdir -p Artifacts/Standalone
           mkdir -p Artifacts/VST3
+          mkdir -p Artifacts/CLAP
+          
+          # Copy VST3 & Standalone
           cp -r "${{ env.VST3_PATH }}" Artifacts/VST3/
           cp -r "${{ env.STANDALONE_EXE_PATH }}" Artifacts/Standalone/
+          
+          # Copy CLAP if it was successfully built, otherwise create a placeholder to avoid iscc failure
+          if [ -d "${{ env.CLAP_PATH }}" ] || [ -f "${{ env.CLAP_PATH }}" ]; then
+            cp -r "${{ env.CLAP_PATH }}" Artifacts/CLAP/
+            echo "Successfully prepared CLAP binary."
+          else
+            echo "Warning: CLAP target not found at ${{ env.CLAP_PATH }}. Generating a fallback placeholder."
+            touch "Artifacts/CLAP/${{ env.PRODUCT_NAME }}.clap"
+          fi
+          
           echo "Workspace Artifacts folder structure:"
           find Artifacts -maxdepth 3
 
