@@ -449,5 +449,5 @@ private:
     float delayBufferR[44100] { 0.0f };
     int delayWriteIdx = 0;
 
-    JU_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };
