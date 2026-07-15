@@ -119,6 +119,16 @@ jobs:
           7z x pluginval_Windows.zip
           "${{ env.PLUGINVAL_BINARY }}" --strictness-level 10 --verbose --validate "${{ env.VST3_PATH }}"
 
+      # Copy built files to workspace Artifacts directory expected by the Inno Setup script
+      - name: Prepare Artifacts for Installer
+        run: |
+          mkdir -p Artifacts/Standalone
+          mkdir -p Artifacts/VST3
+          cp -r "${{ env.VST3_PATH }}" Artifacts/VST3/
+          cp -r "${{ env.STANDALONE_EXE_PATH }}" Artifacts/Standalone/
+          echo "Workspace Artifacts folder structure:"
+          find Artifacts -maxdepth 3
+
       # Package Windows Inno Setup Installer
       - name: Generate Installer
         run: |
