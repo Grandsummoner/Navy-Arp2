@@ -12,7 +12,7 @@ juce_add_plugin(NavyArp
     BUNDLE_ID "com.navyaudio.navyarp"       # Added to resolve the spaces warning
     PLUGIN_MANUFACTURER_CODE "Manu"         # Changed from hex to clean 4-char string literal
     PLUGIN_CODE "Dgav"                      # Changed from hex to clean 4-char string literal
-    FORMATS VST3                            # Strictly VST3 format only
+    FORMATS VST3 Standalone                 # Strictly VST3 and Standalone format only
     PRODUCT_NAME "Navy Arp"
     PLUGIN_NAME "Navy Arp"
     IS_SYNTH TRUE
