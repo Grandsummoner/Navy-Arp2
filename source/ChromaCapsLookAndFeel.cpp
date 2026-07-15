@@ -584,6 +584,65 @@ void ChromaCapsLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, i
         g.setColour (juce::Colours::white.withAlpha (0.4f));
         g.fillRect (grooveX + grooveWidth, grooveY, 1.0f, grooveHeight);
     }
+    else // Horizontal voice sliders in the left panel
+    {
+        const float trackHeight = 3.0f;
+        const float trackY = static_cast<float>(y) + (static_cast<float>(height) - trackHeight) * 0.5f;
+        const float startX = static_cast<float>(x);
+        const float totalW = static_cast<float>(width);
+
+        // Fetch theme colors dynamically
+        juce::Colour activeColor = juce::Colour (0xFF00E5FF); // Theme 0 (Navy): Teal
+        if (themeIdx == 1)      activeColor = juce::Colour (0xFFECEFF1); // Theme 1 (Monochrome): White/Silver
+        else if (themeIdx == 2) activeColor = juce::Colour (0xFF00FF66); // Theme 2 (Matrix): Neon Green
+
+        // Progress bar proportion
+        float progress = static_cast<float>((slider.getValue() - slider.getMinimum()) / (slider.getMaximum() - slider.getMinimum()));
+        progress = juce::jlimit (0.0f, 1.0f, progress);
+        float visualThumbX = startX + progress * totalW;
+
+        // Draw recessed track background
+        g.setColour (juce::Colour (0xFF0B0E14));
+        g.fillRoundedRectangle (startX, trackY, totalW, trackHeight, 1.5f);
+        g.setColour (juce::Colour (0xFF263238).withAlpha (0.25f));
+        g.drawRoundedRectangle (startX, trackY, totalW, trackHeight, 1.5f, 1.0f);
+
+        // Draw active glowing track fill
+        g.setColour (activeColor.withAlpha (0.75f));
+        g.fillRoundedRectangle (startX, trackY, visualThumbX - startX, trackHeight, 1.5f);
+        
+        // Glow effect
+        g.setColour (activeColor.withAlpha (0.12f));
+        g.drawRoundedRectangle (startX, trackY - 1.0f, visualThumbX - startX, trackHeight + 2.0f, 1.5f, 1.25f);
+
+        // Custom capsule metallic thumb
+        const float thumbWidth = 10.0f;
+        const float thumbHeight = 14.0f;
+        const float thumbX = visualThumbX - (thumbWidth * 0.5f);
+        const float thumbY = static_cast<float>(y) + (static_cast<float>(height) - thumbHeight) * 0.5f;
+
+        // Shadow
+        g.setColour (juce::Colours::black.withAlpha (0.5f));
+        g.fillRoundedRectangle (thumbX + 1.0f, thumbY + 1.0f, thumbWidth, thumbHeight, 1.5f);
+
+        // Machined Silver metallic body
+        juce::ColourGradient silverBody (juce::Colour (0xFFECEFF1), thumbX, thumbY,
+                                         juce::Colour (0xFF90A4AE), thumbX, thumbY + thumbHeight,
+                                         false);
+        g.setGradientFill (silverBody);
+        g.fillRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 1.5f);
+
+        // Bezel outline
+        g.setColour (juce::Colours::white.withAlpha (0.6f));
+        g.drawRoundedRectangle (thumbX + 0.5f, thumbY + 0.5f, thumbWidth - 1.0f, thumbHeight - 1.0f, 1.5f, 0.75f);
+        g.setColour (juce::Colour (0xFF37474F).withAlpha (0.35f));
+        g.drawRoundedRectangle (thumbX, thumbY, thumbWidth, thumbHeight, 1.5f, 0.75f);
+
+        // Center glowing micro indicator
+        float dotSize = 2.0f;
+        g.setColour (activeColor);
+        g.fillEllipse (visualThumbX - (dotSize * 0.5f), thumbY + (thumbHeight - dotSize) * 0.5f, dotSize, dotSize);
+    }
 }
 
 void ChromaCapsLookAndFeel::drawLabel (juce::Graphics& g, juce::Label& label)

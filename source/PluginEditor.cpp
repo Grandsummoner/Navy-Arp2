@@ -331,7 +331,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     // SYMMETRICAL LEFT WING CONTROL INSTANTIATIONS [3]
     // =====================================================================
     addAndMakeVisible (soundButton);
-    soundButton.setButtonText ("SND"); // Fixed: Replaced unrendered Unicode glyph with high-contrast text "SND" [3]
+    // Render the music icon ("♫") instead of the "SND" text format to prevent system/download translation confusion [3]
+    soundButton.setButtonText (juce::String::charPointer_UTF8 ("\xe2\x99\xab"));
     soundButton.setClickingTogglesState (true);
     soundButton.onClick = [this] { toggleLeftPanel(); };
     soundButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF181C20));
@@ -718,6 +719,19 @@ void PluginEditor::paint (juce::Graphics& g)
         g.setColour (themeColor.withAlpha (0.4f));
         g.drawVerticalLine (sidebarW, 0.0f, static_cast<float> (getHeight()));
 
+        // Subtle blueprint guidelines behind control rows to enhance visual aesthetic
+        g.setColour (themeColor.withAlpha (0.015f));
+        for (int gx = 25; gx < sidebarW; gx += 25)
+            g.drawVerticalLine (gx, 45.0f, static_cast<float> (getHeight() - 15));
+        for (int gy = 55; gy < getHeight(); gy += 25)
+            g.drawHorizontalLine (gy, 15.0f, static_cast<float> (sidebarW - 15));
+
+        // Horizontal blueprint separator lines between sections
+        g.setColour (juce::Colour (0xFF13171F));
+        g.drawHorizontalLine (180, 15.0f, static_cast<float> (sidebarW - 15));
+        g.drawHorizontalLine (380, 15.0f, static_cast<float> (sidebarW - 15));
+        g.drawHorizontalLine (580, 15.0f, static_cast<float> (sidebarW - 15));
+
         // Document Title
         g.setColour (juce::Colours::white);
         g.setFont (juce::FontOptions ("Courier New", 14.0f, juce::Font::bold));
@@ -757,7 +771,7 @@ void PluginEditor::paint (juce::Graphics& g)
             g.drawText (sec.title, rx + 10, ry, rw - 20, rh, juce::Justification::centredLeft);
         }
 
-        // Render micro sliders parameter text tags
+        // Render micro sliders parameter text tags on Eurorack single-line blueprint positions
         g.setColour (juce::Colour (0xFFA0A5B0));
         g.setFont (juce::FontOptions ("Courier New", 11.0f, juce::Font::bold));
         
@@ -765,16 +779,74 @@ void PluginEditor::paint (juce::Graphics& g)
         g.drawText ("MIDI OUT:", 15, 145, 80, 16, juce::Justification::centredLeft);
 
         g.drawText ("SYNTH ENGINE:", 15, 215, 150, 16, juce::Justification::centredLeft);
-        g.drawText ("DECAY", 15, 275, 80, 16, juce::Justification::centredLeft);
-        g.drawText ("TIMBRE", 15, 305, 80, 16, juce::Justification::centredLeft);
-        g.drawText ("REVERB", 15, 335, 80, 16, juce::Justification::centredLeft);
+        g.drawText ("DECAY", 15, 272, 65, 16, juce::Justification::centredLeft);
+        g.drawText ("TIMBRE", 15, 302, 65, 16, juce::Justification::centredLeft);
+        g.drawText ("REVERB", 15, 332, 65, 16, juce::Justification::centredLeft);
 
         g.drawText ("SYNTH ENGINE:", 15, 415, 150, 16, juce::Justification::centredLeft);
-        g.drawText ("DECAY", 15, 475, 80, 16, juce::Justification::centredLeft);
-        g.drawText ("TIMBRE", 15, 505, 80, 16, juce::Justification::centredLeft);
-        g.drawText ("REVERB", 15, 535, 80, 16, juce::Justification::centredLeft);
+        g.drawText ("DECAY", 15, 472, 65, 16, juce::Justification::centredLeft);
+        g.drawText ("TIMBRE", 15, 502, 65, 16, juce::Justification::centredLeft);
+        g.drawText ("REVERB", 15, 532, 65, 16, juce::Justification::centredLeft);
 
         g.drawText ("SIGNAL FLOW:", 15, 615, 150, 16, juce::Justification::centredLeft);
+
+        // Fetch voice parameters to draw real-time interactive blueprint graphs
+        float v1DecayVal = static_cast<float> (v1DecaySlider.getValue());
+        float v1TimbreVal = static_cast<float> (v1TimbreSlider.getValue());
+        float v1ReverbVal = static_cast<float> (v1ReverbSlider.getValue());
+        
+        float v2DecayVal = static_cast<float> (v2DecaySlider.getValue());
+        float v2TimbreVal = static_cast<float> (v2TimbreSlider.getValue());
+        float v2ReverbVal = static_cast<float> (v2ReverbSlider.getValue());
+
+        // Dynamic vector drawing lambdas to create glowing oscilloscopes
+        auto drawDecayGraph = [&](int gx, int gy, float val, juce::Colour col) {
+            juce::Path p;
+            p.startNewSubPath (gx, gy + 13);
+            p.lineTo (gx + 5, gy + 3);
+            float decayX = gx + 5 + val * 35.0f;
+            p.lineTo (decayX, gy + 3);
+            p.lineTo (gx + 45, gy + 13);
+            g.setColour (col.withAlpha (0.10f));
+            g.fillPath (p);
+            g.setColour (col.withAlpha (0.75f));
+            g.drawPath (p, 1.25f);
+        };
+
+        auto drawTimbreGraph = [&](int gx, int gy, float val, juce::Colour col) {
+            juce::Path p;
+            p.startNewSubPath (gx, gy + 13);
+            float cutoffX = gx + 5 + val * 30.0f;
+            p.lineTo (cutoffX - 4, gy + 13);
+            p.quadraticTo (cutoffX, gy + 2, cutoffX + 4, gy + 13); // resonance bump
+            p.lineTo (gx + 45, gy + 13);
+            g.setColour (col.withAlpha (0.10f));
+            g.fillPath (p);
+            g.setColour (col.withAlpha (0.75f));
+            g.drawPath (p, 1.25f);
+        };
+
+        auto drawReverbGraph = [&](int gx, int gy, float val, juce::Colour col) {
+            g.setColour (col.withAlpha (0.75f));
+            int numTaps = 4 + static_cast<int> (val * 8.0f);
+            for (int tap = 0; tap < numTaps; ++tap)
+            {
+                float progress = static_cast<float> (tap) / static_cast<float> (numTaps);
+                float tx = gx + 2.0f + progress * 40.0f;
+                float th = (10.0f - progress * 7.0f) * (0.3f + val * 0.7f);
+                g.drawVerticalLine (static_cast<int> (tx), gy + 13.0f - th, gy + 13.0f);
+            }
+        };
+
+        // Draw Interactive Blueprint Graphs (Symmetrically matched to voice header colors)
+        int graphX = 235;
+        drawDecayGraph  (graphX, 272, v1DecayVal, juce::Colour (0xFFFF3366)); // Voice 1 Pink
+        drawTimbreGraph (graphX, 302, v1TimbreVal, juce::Colour (0xFFFF3366));
+        drawReverbGraph (graphX, 332, v1ReverbVal, juce::Colour (0xFFFF3366));
+
+        drawDecayGraph  (graphX, 472, v2DecayVal, juce::Colour (0xFFD500F9)); // Voice 2 Purple
+        drawTimbreGraph (graphX, 502, v2TimbreVal, juce::Colour (0xFFD500F9));
+        drawReverbGraph (graphX, 532, v2ReverbVal, juce::Colour (0xFFD500F9));
     }
 
     // =====================================================================
@@ -1039,11 +1111,11 @@ void PluginEditor::resized()
     // Right Master Swing Knob
     masterSwingKnob.setBounds (xOffset + 884, 396, 84, 86);
 
-    // Top Dropdowns (Left)
-    rootKeyBox.setBounds (xOffset + 163, 17, 58, 17); 
-    scaleTypeBox.setBounds (xOffset + 233, 17, 58, 17); 
-    cycleLengthBox.setBounds (xOffset + 304, 17, 58, 17);
-    panelThemeBox.setBounds (xOffset + 374, 17, 58, 17); 
+    // Top Dropdowns (Left) - Expanded width by 12px to prevent clipping / truncation [3]
+    rootKeyBox.setBounds (xOffset + 163, 17, 62, 17); 
+    scaleTypeBox.setBounds (xOffset + 233, 17, 65, 17); 
+    cycleLengthBox.setBounds (xOffset + 304, 17, 65, 17);
+    panelThemeBox.setBounds (xOffset + 374, 17, 72, 17); 
     
     // Top Row Performance Buttons (Right) [1.2.3]
     latchButton.setBounds (xOffset + 533, 15, 58, 17); 
@@ -1051,9 +1123,9 @@ void PluginEditor::resized()
     polyButton.setBounds (xOffset + 669, 15, 58, 17); 
     freezeButton.setBounds (xOffset + 738, 15, 58, 17);
     
-    // Symmetrical "?" and "♫" toggler icons at absolute boundaries of Main dropdown bar row
+    // Symmetrical "?" and "SND" toggler icons stay fixed and shift with main panel [3]
     helpButton.setBounds (xOffset + 965, 15, 18, 18);
-    soundButton.setBounds (15, 15, 30, 18); // Symmetric note anchor expanded to 30px to prevent clipping [3]
+    soundButton.setBounds (xOffset + 15, 15, 30, 18); // Symmetrically locked to main panel origin [3]
 
     // Safety boundaries set dynamically using property fetches for wrapped syncButton [1.2.3]
     auto syncWrapper = SyncButtonWrapper::Ptr (dynamic_cast<SyncButtonWrapper*> (getProperties()["syncWrapper"].getObject()));
@@ -1091,14 +1163,14 @@ void PluginEditor::resized()
         midiOutBox.setBounds (15, 145, 270, 20);
 
         voice1SynthBox.setBounds (15, 240, 270, 20);
-        v1DecaySlider.setBounds (15, 280, 270, 16);
-        v1TimbreSlider.setBounds (15, 310, 270, 16);
-        v1ReverbSlider.setBounds (15, 340, 270, 16);
+        v1DecaySlider.setBounds (85, 272, 140, 16);  // Single-line compact Euro-rack layout [3]
+        v1TimbreSlider.setBounds (85, 302, 140, 16);
+        v1ReverbSlider.setBounds (85, 332, 140, 16);
 
         voice2SynthBox.setBounds (15, 440, 270, 20);
-        v2DecaySlider.setBounds (15, 480, 270, 16);
-        v2TimbreSlider.setBounds (15, 510, 270, 16);
-        v2ReverbSlider.setBounds (15, 540, 270, 16);
+        v2DecaySlider.setBounds (85, 472, 140, 16);
+        v2TimbreSlider.setBounds (85, 502, 140, 16);
+        v2ReverbSlider.setBounds (85, 532, 140, 16);
 
         audioRoutingBox.setBounds (15, 620, 270, 20);
     }
