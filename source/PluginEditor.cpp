@@ -155,6 +155,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         sceneBtns[i]->setTriggeredOnMouseDown (true); // Instantly switches on mouse down
     }
 
+    // Utility buttons setup
     juce::TextButton* utilBtns[] = { &saveButton, &recallButton, &copyButton, &initButton }; 
     juce::String utilTxt[] = { "Save", "Recall", "Copy", "Init" };
     for (int i = 0; i < 4; ++i) { 
@@ -332,7 +333,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     // =====================================================================
     addAndMakeVisible (soundButton);
     // Render the music icon ("♫") instead of the "SND" text format to prevent system/download translation confusion [3]
-    soundButton.setButtonText (juce::String::charPointer_UTF8 ("\xe2\x99\xab"));
+    soundButton.setButtonText (juce::String::fromUTF8 ("\xe2\x99\xab"));
     soundButton.setClickingTogglesState (true);
     soundButton.onClick = [this] { toggleLeftPanel(); };
     soundButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xFF181C20));
@@ -810,7 +811,7 @@ void PluginEditor::paint (juce::Graphics& g)
             g.setColour (col.withAlpha (0.10f));
             g.fillPath (p);
             g.setColour (col.withAlpha (0.75f));
-            g.drawPath (p, 1.25f);
+            g.strokePath (p, juce::PathStrokeType (1.25f));
         };
 
         auto drawTimbreGraph = [&](int gx, int gy, float val, juce::Colour col) {
@@ -823,7 +824,7 @@ void PluginEditor::paint (juce::Graphics& g)
             g.setColour (col.withAlpha (0.10f));
             g.fillPath (p);
             g.setColour (col.withAlpha (0.75f));
-            g.drawPath (p, 1.25f);
+            g.strokePath (p, juce::PathStrokeType (1.25f));
         };
 
         auto drawReverbGraph = [&](int gx, int gy, float val, juce::Colour col) {
