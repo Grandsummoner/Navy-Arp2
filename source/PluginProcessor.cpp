@@ -708,7 +708,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         float delayOutL = delayBufferL[readIdxL];
         float delayOutR = delayBufferR[readIdxR];
 
-        // Feed independent, user-controllable delay input fader paths [3]
+        // Feed independent, user-controllable delay fader paths [3]
         delayBufferL[delayWriteIdx] = delayInput + (delayOutL * 0.45f);
         delayBufferR[delayWriteIdx] = delayInput + (delayOutR * 0.45f);
 
@@ -1217,27 +1217,28 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     // Symmetrical layerable multi-select instrument options [3]
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1Analog, "Voice 1 Analog Engine", true));
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1Fm, "Voice 1 FM Engine", false));
-    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1String, "Voice 1 Resonator Engine", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1String, "Voice 1 Supersaw Engine", false));
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1Pulse, "Voice 1 Pulse Engine", false));
 
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Attack, "Voice 1 Attack", 0.001f, 2.0f, 0.01f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Decay, "Voice 1 Decay", 0.01f, 3.0f, 0.35f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Sustain, "Voice 1 Sustain", 0.0f, 1.0f, 0.70f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Release, "Voice 1 Release", 0.01f, 3.0f, 0.25f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Timbre, "Voice 1 Timbre", 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Timbre, "Voice 1 LPF Cutoff", 0.0f, 1.0f, 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Reverb, "Voice 1 Reverb", 0.0f, 1.0f, 0.15f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Delay, "Voice 1 Delay Send", 0.0f, 1.0f, 0.30f)); // Delay [3]
     
+    // Symmetrical layerable multi-select instrument options [3]
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2Analog, "Voice 2 Analog Engine", false));
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2Fm, "Voice 2 FM Engine", false));
-    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2String, "Voice 2 Resonator Engine", true));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2String, "Voice 2 Supersaw Engine", true));
     params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2Pulse, "Voice 2 Pulse Engine", false));
 
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Attack, "Voice 2 Attack", 0.001f, 2.0f, 0.01f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Decay, "Voice 2 Decay", 0.01f, 3.0f, 0.35f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Sustain, "Voice 2 Sustain", 0.0f, 1.0f, 0.70f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Release, "Voice 2 Release", 0.01f, 3.0f, 0.25f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Timbre, "Voice 2 Timbre", 0.0f, 1.0f, 0.2f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Timbre, "Voice 2 LPF Cutoff", 0.0f, 1.0f, 0.2f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Reverb, "Voice 2 Reverb", 0.0f, 1.0f, 0.3f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Delay, "Voice 2 Delay Send", 0.0f, 1.0f, 0.30f)); // Delay [3]
     

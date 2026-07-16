@@ -360,7 +360,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     };
     setupSynthTab1 (v1AnalogBtn, "Analog");
     setupSynthTab1 (v1FmBtn, "FM");
-    setupSynthTab1 (v1StringBtn, "String");
+    setupSynthTab1 (v1StringBtn, "Super"); // Updated button text label [3]
     setupSynthTab1 (v1PulseBtn, "Pulse");
 
     v1AnalogAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice1Analog.getParamID(), v1AnalogBtn);
@@ -377,7 +377,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     };
     setupSynthTab2 (v2AnalogBtn, "Analog");
     setupSynthTab2 (v2FmBtn, "FM");
-    setupSynthTab2 (v2StringBtn, "String");
+    setupSynthTab2 (v2StringBtn, "Super"); // Updated button text label [3]
     setupSynthTab2 (v2PulseBtn, "Pulse");
 
     v2AnalogAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice2Analog.getParamID(), v2AnalogBtn);
@@ -903,26 +903,26 @@ void PluginEditor::paint (juce::Graphics& g)
         drawAdsrGraph (15, 240, 270, 42, v1A, v1D, v1S, v1R, juce::Colour (0xFFFF3366)); // Voice 1 Pink
         drawAdsrGraph (15, 440, 270, 42, v2A, v2D, v2S, v2R, juce::Colour (0xFFD500F9)); // Voice 2 Purple
 
-        // Render micro labels above rotary knobs (Attack, Decay, Sustain, Release, Timbre, Delay, Reverb, Volume)
+        // Render micro labels above rotary knobs (Attack, Decay, Sustain, Release, LPF, Delay, Reverb, Volume)
         g.setColour (juce::Colour (0xFFA0A5B0));
         g.setFont (juce::Font (fontName, 10.0f, juce::Font::bold));
 
-        // Voice 1 text labels centered above the pots
+        // Voice 1 text labels centered above the pots (Timb renamed to LPF)
         g.drawText ("A",    15,  285, 42, 10, juce::Justification::centred);
         g.drawText ("D",    80,  285, 42, 10, juce::Justification::centred);
         g.drawText ("S",    145, 285, 42, 10, juce::Justification::centred);
         g.drawText ("R",    210, 285, 42, 10, juce::Justification::centred);
-        g.drawText ("Timb", 15,  335, 42, 10, juce::Justification::centred);
+        g.drawText ("LPF",  15,  335, 42, 10, juce::Justification::centred); // LPF Cutoff [3]
         g.drawText ("Delay", 80,  335, 42, 10, juce::Justification::centred);
         g.drawText ("Revb", 145, 335, 42, 10, juce::Justification::centred);
         g.drawText ("Vol",  210, 335, 42, 10, juce::Justification::centred);
 
-        // Voice 2 text labels centered above the pots
+        // Voice 2 text labels centered above the pots (Timb renamed to LPF)
         g.drawText ("A",    15,  485, 42, 10, juce::Justification::centred);
         g.drawText ("D",    80,  485, 42, 10, juce::Justification::centred);
         g.drawText ("S",    145, 485, 42, 10, juce::Justification::centred);
         g.drawText ("R",    210, 485, 42, 10, juce::Justification::centred);
-        g.drawText ("Timb", 15,  535, 42, 10, juce::Justification::centred);
+        g.drawText ("LPF",  15,  535, 42, 10, juce::Justification::centred); // LPF Cutoff [3]
         g.drawText ("Delay", 80,  535, 42, 10, juce::Justification::centred);
         g.drawText ("Revb", 145, 535, 42, 10, juce::Justification::centred);
         g.drawText ("Vol",  210, 535, 42, 10, juce::Justification::centred);
@@ -1250,7 +1250,7 @@ void PluginEditor::resized()
         v1StringBtn.setBounds (147, 215, 63, 18);
         v1PulseBtn.setBounds (213, 215, 63, 18);
 
-        // Voice 1 tactile independent ADSR / Timbre / Delay / Reverb / Volume knobs (Rotaries!) [3]
+        // Voice 1 tactile independent ADSR / Timbre / Delay / Reverb / Volume knobs (LPF controls!) [3]
         v1AttackKnob.setBounds  (15,  295, 42, 42);
         v1DecayKnob.setBounds   (80,  295, 42, 42);
         v1SustainKnob.setBounds (145, 295, 42, 42);
@@ -1267,7 +1267,7 @@ void PluginEditor::resized()
         v2StringBtn.setBounds (147, 415, 63, 18);
         v2PulseBtn.setBounds (213, 415, 63, 18);
 
-        // Voice 2 tactile independent ADSR / Timbre / Delay / Reverb / Volume knobs (Rotaries!) [3]
+        // Voice 2 tactile independent ADSR / Timbre / Delay / Reverb / Volume knobs (LPF controls!) [3]
         v2AttackKnob.setBounds  (15,  495, 42, 42);
         v2DecayKnob.setBounds   (80,  495, 42, 42);
         v2SustainKnob.setBounds (145, 495, 42, 42);

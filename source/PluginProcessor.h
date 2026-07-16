@@ -123,14 +123,13 @@ struct SynthVoice
     float fmModPhase = 0.0f;
     float fmModFreq = 0.0f;
     
-    // Karplus-Strong physical modeling resonator delay ring buffer
-    float resBuffer[2048] { 0.0f };
-    int resWriteIdx = 0;
-    float noiseImpulse = 0.0f;
-    float lastFilterOut = 0.0f; // Stable 1-pole state variable for noise damping
+    // Parallel phase registers for 7-voice detuned Supersaw [3]
+    float sawPhases[7] { 0.0f };
+    float sawPhaseIncrements[7] { 0.0f };
     
-    // Subtractive resonant feedback lowpass filter states
-    float s1 = 0.0f, s2 = 0.0f;
+    // Subtractive filter state registers
+    float s1 = 0.0f, s2 = 0.0f;          // Subtractive LPF for Analog / FM / Pulse
+    float sSupersaw = 0.0f;              // Dedicated LPF for 7-voice detuned Supersaw
 
     // ADSR State parameters
     float attack = 0.01f;
@@ -151,6 +150,15 @@ struct SynthVoice
         float freq = 440.0f * std::pow (2.0f, (pitch - 69.0f) / 12.0f);
         phaseIncrement = freq / static_cast<float> (sampleRate);
         
+        // 7-voice detuned Supersaw frequency phase increment allocations [3]
+        // Micro-detune range strictly scaled between -0.06 and +0.06 semitones (very, very slight)
+        float detunes[7] = { -0.06f, -0.04f, -0.015f, 0.00f, 0.015f, 0.04f, 0.06f };
+        for (int i = 0; i < 7; ++i)
+        {
+            float detunedFreq = freq * std::pow (2.0f, detunes[i] / 12.0f);
+            sawPhaseIncrements[i] = detunedFreq / static_cast<float> (sampleRate);
+        }
+
         // Symmetrical ADSR trigger initialization only on the first active note [3]
         if (activeNoteCount == 0)
         {
@@ -160,10 +168,6 @@ struct SynthVoice
         }
         
         activeNoteCount++;
-        
-        // Feed the physical model noise generator impulse
-        noiseImpulse = 1.0f;
-        lastFilterOut = 0.0f; // Reset feedback state
     }
 
     void releaseNote()
@@ -185,7 +189,7 @@ struct SynthVoice
         }
     }
 
-    float process (bool analogActive, bool fmActive, bool stringActive, bool pulseActive, float timbre)
+    float process (bool analogActive, bool fmActive, bool supersawActive, bool pulseActive, float cutoffKnob)
     {
         // ADSR State Machine Processing
         double dt = 1.0 / sampleRate;
@@ -229,18 +233,19 @@ struct SynthVoice
         float totalOutput = 0.0f;
         int activeCount = 0;
 
-        // Sync and phase advancement flag for oscillator paths [3]
+        // Sync and phase advancement flag for base oscillator paths [3]
         bool needsPhaseAdvance = analogActive || fmActive || pulseActive;
+
+        // Proportional filter cutoff frequency mapped to ADSR envelope
+        float filterCutoffHz = 60.0f + (cutoffKnob * 7500.0f) * envVal;
+        float wd = juce::MathConstants<float>::twoPi * filterCutoffHz / static_cast<float> (sampleRate);
+        float g = std::tan (wd * 0.5f);
+        float h = g / (1.0f + g);
 
         if (analogActive)
         {
             float wave = 2.0f * phase - 1.0f;
-            float cutoff = 50.0f + timbre * 4000.0f;
-            float wd = juce::MathConstants<float>::twoPi * cutoff / static_cast<float> (sampleRate);
-            float g = std::tan (wd * 0.5f);
-            float h = g / (1.0f + g);
-            
-            float resonance = 0.5f; 
+            float resonance = 0.45f; 
             float filterOut = (wave - s1 * resonance) * h + s1;
             s1 = filterOut;
             
@@ -257,60 +262,51 @@ struct SynthVoice
             if (fmModPhase >= 1.0f) fmModPhase -= 1.0f;
             
             float modOut = std::sin (fmModPhase * juce::MathConstants<double>::twoPi);
-            float modIndex = timbre * 8.0f * envVal;
+            float modIndex = cutoffKnob * 6.5f; // Timbre controls FM modulator index
             
             float carrierPhase = phase + modOut * modIndex * phaseIncrement;
-            totalOutput += std::sin (carrierPhase * juce::MathConstants<double>::twoPi);
+            float carrierWave = std::sin (carrierPhase * juce::MathConstants<double>::twoPi);
+            
+            // Route FM through LPF [3]
+            float resonance = 0.35f;
+            float filterOut = (carrierWave - s1 * resonance) * h + s1;
+            s1 = filterOut;
+
+            totalOutput += filterOut;
             activeCount++;
         }
 
-        if (stringActive)
+        if (supersawActive)
         {
-            int delayLength = static_cast<int> (1.0f / phaseIncrement);
-            if (delayLength >= 2048) delayLength = 2047;
-            if (delayLength < 4) delayLength = 4;
-            
-            int readIdx = resWriteIdx - delayLength;
-            if (readIdx < 0) readIdx += 2048;
-            
-            float delayedVal = resBuffer[readIdx];
-            float excitation = 0.0f;
-            
-            if (noiseImpulse > 0.001f)
+            float supersawSum = 0.0f;
+            for (int i = 0; i < 7; ++i)
             {
-                excitation = (juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f) * noiseImpulse;
-                noiseImpulse *= 0.94f; // Clean, realistic strike decay
+                float sawWave = 2.0f * sawPhases[i] - 1.0f;
+                supersawSum += sawWave;
+                
+                // Advance independent phase paths [3]
+                sawPhases[i] += sawPhaseIncrements[i];
+                if (sawPhases[i] >= 1.0f) sawPhases[i] -= 1.0f;
             }
             
-            // Symmetrical 1-pole feedback lowpass filtering
-            float filteredVal = 0.5f * (delayedVal + lastFilterOut);
-            lastFilterOut = delayedVal;
-
-            // DC offset and low frequency drift blocker (reduced to prevent excessive damping)
-            filteredVal -= lastFilterOut * 0.001f; 
+            // Standard power normalization for the 7 stacked saws
+            float rawSupersaw = supersawSum * 0.35f;
             
-            // Pluck decay feedback loop rate adjusted to ring naturally (0.990 - 0.998 range per sample)
-            float feedback = 0.990f + timbre * 0.008f; 
-            float currentVal = excitation + filteredVal * feedback;
+            // Route through dedicated 7-voice LPF state variable to prevent filter bleeding [3]
+            float resonance = 0.38f;
+            float filterOut = (rawSupersaw - sSupersaw * resonance) * h + sSupersaw;
+            sSupersaw = filterOut;
             
-            resBuffer[resWriteIdx] = currentVal;
-            resWriteIdx = (resWriteIdx + 1) % 2048;
-            
-            totalOutput += currentVal * 1.00f; // Symmetrical pluck output volume scale
+            totalOutput += filterOut;
             activeCount++;
         }
 
         if (pulseActive)
         {
-            float width = 0.15f + timbre * 0.7f; // PWM sweep from 15% to 85%
+            float width = 0.15f + cutoffKnob * 0.7f; // PWM sweeps on timbre knob
             float wave = (phase < width) ? 0.4f : -0.4f;
             
-            float cutoff = 80.0f + timbre * 3500.0f;
-            float wd = juce::MathConstants<float>::twoPi * cutoff / static_cast<float> (sampleRate);
-            float g = std::tan (wd * 0.5f);
-            float h = g / (1.0f + g);
-            
-            float resonance = 0.45f;
+            float resonance = 0.40f;
             float filterOut = (wave - s1 * resonance) * h + s1;
             s1 = filterOut;
             
@@ -589,7 +585,6 @@ private:
     float modLegato = 0.5f;
     float modRest = 0.1f;
     float modEntropy = 0.0f;
-    float modHarmony = 0.0f;
     float modChaos = 0.0f;
 
     // Freeze Snapshot States

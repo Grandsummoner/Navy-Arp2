@@ -166,7 +166,7 @@ void ChromaCapsLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton&
     const bool isDiceButton = (text == "Melo" || text == "Arti" || text == "Time" || text == "Navy");
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
-    const bool isInstrumentButton = (text == "Analog" || text == "FM" || text == "String" || text == "Pulse");
+    const bool isInstrumentButton = (text == "Analog" || text == "FM" || text == "Super" || text == "Pulse"); // Updated "String" to "Super"
 
     int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
     juce::String fontName = juce::Font::getDefaultSansSerifFontName();
@@ -293,7 +293,7 @@ void ChromaCapsLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Butto
     const bool isDiceButton = (text == "Melo" || text == "Arti" || text == "Time" || text == "Navy");
     const bool isStaticTopButton = (text == "Latch" || text == "Poly" || text == "Freeze" || text == "Seq" || text == "SEQ" || text == "Arp" || text == "ARP");
     const bool isPresetButton = (text == "1" || text == "2" || text == "3" || text == "4" || text == "5" || text == "6" || text == "7" || text == "8");
-    const bool isInstrumentButton = (text == "Analog" || text == "FM" || text == "String" || text == "Pulse");
+    const bool isInstrumentButton = (text == "Analog" || text == "FM" || text == "Super" || text == "Pulse"); // Updated "String" to "Super"
 
     int themeIdx = static_cast<int> (processor.apvts.getRawParameterValue ("panelTheme")->load());
 
