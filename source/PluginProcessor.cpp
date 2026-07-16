@@ -720,4 +720,445 @@ void PluginProcessor::loadPreset (int slotIndex)
         juce::ParameterID depths[] = { IDs::rhythmMorphLfoDepth, IDs::restLfoDepth, IDs::legatoLfoDepth, IDs::rateLfoDepth, IDs::entropyLfoDepth, IDs::harmonyLfoDepth, IDs::chaosLfoDepth, IDs::octavesLfoDepth };
         for (int i = 0; i < 8; ++i) { 
             apvts.getParameter (rates[i].getParamID())->setValueNotifyingHost (static_cast<float>(presets[slotIndex].lfoRates[i]) / 4.0f); 
-            apvts.getParam
+            apvts.getParameter (depths[i].getParamID())->setValueNotifyingHost (presets[slotIndex].lfoDepths[i]); 
+        }
+        for (int i = 0; i < 8; ++i) apvts.getParameter (juce::String ("fader" + juce::String (i + 1)))->setValueNotifyingHost (presets[slotIndex].faders[i]); 
+        activePresetIndex.store (slotIndex); 
+    } 
+}
+
+void PluginProcessor::captureScene (int side) 
+{ 
+    // Handled directly and safely in the editor's timerCallback 
+    // during active drag states to prevent feedback loops.
+}
+
+void PluginProcessor::resetAccumulator() { accumulatedPitchOffset = 0.0f; }
+
+void PluginProcessor::resetRhythm() 
+{ 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    for (int i = 0; i < 8; ++i) 
+        activeScene.faders[i] = 1.0f; 
+}
+
+void PluginProcessor::diceMelody() 
+{ 
+    auto* r = &juce::Random::getSystemRandom(); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    for (int i = 0; i < 8; ++i) 
+        activeScene.faders[i] = r->nextFloat();
+}
+
+void PluginProcessor::diceArticulation() 
+{ 
+    auto* r = &juce::Random::getSystemRandom(); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    activeScene.rest = r->nextFloat() * 0.5f; 
+    activeScene.legato = 0.1f + r->nextFloat() * 0.9f; 
+}
+
+void PluginProcessor::diceTime() 
+{ 
+    auto* r = &juce::Random::getSystemRandom(); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    activeScene.rate = r->nextFloat(); 
+    activeScene.octaves = static_cast<float> (r->nextInt (7) - 3); 
+    apvts.getParameter (IDs::cycleLength.getParamID())->setValueNotifyingHost (static_cast<float>(r->nextInt(4)) / 3.0f); 
+}
+
+void PluginProcessor::diceNavy() 
+{ 
+    auto* r = &juce::Random::getSystemRandom(); 
+    SceneState& activeScene = isSceneBActiveAnchor.load() ? sceneB : sceneA;
+    activeScene.rhythmMorph = r->nextFloat(); 
+    activeScene.entropy = -1.0f + r->nextFloat() * 2.0f; 
+    activeScene.harmony = r->nextFloat(); 
+    activeScene.chaos = r->nextFloat(); 
+}
+
+void PluginProcessor::diceActiveSceneA()
+{
+    auto* random = &juce::Random::getSystemRandom(); for (int i = 0; i < 8; ++i) sceneA.faders[i] = random->nextFloat();
+    sceneA.rhythmMorph = random->nextFloat(); sceneA.rest = random->nextFloat() * 0.5f; sceneA.legato = 0.1f + random->nextFloat() * 0.9f;
+    sceneA.entropy = -1.0f + random->nextFloat() * 2.0f; sceneA.harmony = random->nextFloat(); sceneA.chaos = random->nextFloat();
+    sceneA.rate = random->nextFloat(); sceneA.octaves = static_cast<float> (random->nextInt (7) - 3); hasSceneA = true;
+}
+
+void PluginProcessor::diceActiveSceneB()
+{
+    auto* random = &juce::Random::getSystemRandom(); for (int i = 0; i < 8; ++i) sceneB.faders[i] = random->nextFloat();
+    sceneB.rhythmMorph = random->nextFloat(); sceneB.rest = random->nextFloat() * 0.5f; sceneB.legato = 0.1f + random->nextFloat() * 0.9f;
+    sceneB.entropy = -1.0f + random->nextFloat() * 2.0f; sceneB.harmony = random->nextFloat(); sceneB.chaos = random->nextFloat();
+    sceneB.rate = random->nextFloat(); sceneB.octaves = static_cast<float> (random->nextInt (7) - 3); hasSceneB = true;
+}
+
+void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
+{
+    auto state = apvts.copyState(); 
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    
+    if (xml != nullptr)
+    {
+        // 1. Serialize active workspace focus and presence flags
+        xml->setAttribute ("isSceneBActiveAnchor", isSceneBActiveAnchor.load());
+        xml->setAttribute ("hasSceneA", hasSceneA);
+        xml->setAttribute ("hasSceneB", hasSceneB);
+
+        // Serialize Voice ADSR details
+        xml->setAttribute ("v1Attack", voice1.attack);
+        xml->setAttribute ("v1Decay", voice1.decay);
+        xml->setAttribute ("v1Sustain", voice1.sustain);
+        xml->setAttribute ("v1Release", voice1.release);
+
+        xml->setAttribute ("v2Attack", voice2.attack);
+        xml->setAttribute ("v2Decay", voice2.decay);
+        xml->setAttribute ("v2Sustain", voice2.sustain);
+        xml->setAttribute ("v2Release", voice2.release);
+
+        // 2. Serialize current active Scene A profile
+        auto* activeSceneANode = xml->createNewChildElement ("CURRENT_SCENE_A");
+        if (activeSceneANode != nullptr)
+        {
+            activeSceneANode->setAttribute ("morph", sceneA.rhythmMorph);
+            activeSceneANode->setAttribute ("rest", sceneA.rest);
+            activeSceneANode->setAttribute ("legato", sceneA.legato);
+            activeSceneANode->setAttribute ("rate", sceneA.rate);
+            activeSceneANode->setAttribute ("entropy", sceneA.entropy);
+            activeSceneANode->setAttribute ("harmony", sceneA.harmony);
+            activeSceneANode->setAttribute ("chaos", sceneA.chaos);
+            activeSceneANode->setAttribute ("octaves", sceneA.octaves);
+            for (int f = 0; f < 8; ++f) 
+                activeSceneANode->setAttribute ("fader_" + juce::String (f), sceneA.faders[f]);
+            for (int l = 0; l < 8; ++l) {
+                activeSceneANode->setAttribute ("lfo_r_" + juce::String (l), sceneA.lfoRates[l]);
+                activeSceneANode->setAttribute ("lfo_d_" + juce::String (l), sceneA.lfoDepths[l]);
+            }
+        }
+
+        // 3. Serialize current active Scene B profile
+        auto* activeSceneBNode = xml->createNewChildElement ("CURRENT_SCENE_B");
+        if (activeSceneBNode != nullptr)
+        {
+            activeSceneBNode->setAttribute ("morph", sceneB.rhythmMorph);
+            activeSceneBNode->setAttribute ("rest", sceneB.rest);
+            activeSceneBNode->setAttribute ("legato", sceneB.legato);
+            activeSceneBNode->setAttribute ("rate", sceneB.rate);
+            activeSceneBNode->setAttribute ("entropy", sceneB.entropy);
+            activeSceneBNode->setAttribute ("harmony", sceneB.harmony);
+            activeSceneBNode->setAttribute ("chaos", sceneB.chaos);
+            activeSceneBNode->setAttribute ("octaves", sceneB.octaves);
+            for (int f = 0; f < 8; ++f) 
+                activeSceneBNode->setAttribute ("fader_" + juce::String (f), sceneB.faders[f]);
+            for (int l = 0; l < 8; ++l) {
+                activeSceneBNode->setAttribute ("lfo_r_" + juce::String (l), sceneB.lfoRates[l]);
+                activeSceneBNode->setAttribute ("lfo_d_" + juce::String (l), sceneB.lfoDepths[l]);
+            }
+        }
+
+        // 4. Serialize scene presets (Slot matrices)
+        auto* presetsNodeA = xml->createNewChildElement ("SCENE_A_PRESETS");
+        auto* presetsNodeB = xml->createNewChildElement ("SCENE_B_PRESETS");
+        
+        if (presetsNodeA != nullptr && presetsNodeB != nullptr)
+        {
+            for (int i = 0; i < 8; ++i) 
+            {
+                auto* childA = presetsNodeA->createNewChildElement ("SLOT_" + juce::String (i)); 
+                if (childA != nullptr) {
+                    childA->setAttribute ("saved", sceneASlotsSaved[i]);
+                    if (sceneASlotsSaved[i]) {
+                        childA->setAttribute ("morph", sceneAPresets[i].rhythmMorph); 
+                        childA->setAttribute ("rest", sceneAPresets[i].rest); 
+                        childA->setAttribute ("legato", sceneAPresets[i].legato);
+                        childA->setAttribute ("rate", sceneAPresets[i].rate); 
+                        childA->setAttribute ("entropy", sceneAPresets[i].entropy); 
+                        childA->setAttribute ("harmony", sceneAPresets[i].harmony);
+                        childA->setAttribute ("chaos", sceneAPresets[i].chaos); 
+                        childA->setAttribute ("octaves", sceneAPresets[i].octaves);
+                        for (int f = 0; f < 8; ++f) 
+                            childA->setAttribute ("fader_" + juce::String (f), sceneAPresets[i].faders[f]);
+                        for (int l = 0; l < 8; ++l) { 
+                            childA->setAttribute ("lfo_r_" + juce::String (l), sceneAPresets[i].lfoRates[l]); 
+                            childA->setAttribute ("lfo_d_" + juce::String (l), sceneAPresets[i].lfoDepths[l]); 
+                        }
+                    }
+                }
+                
+                auto* childB = presetsNodeB->createNewChildElement ("SLOT_" + juce::String (i)); 
+                if (childB != nullptr) {
+                    childB->setAttribute ("saved", sceneBSlotsSaved[i]);
+                    if (sceneBSlotsSaved[i]) {
+                        childB->setAttribute ("morph", sceneBPresets[i].rhythmMorph); 
+                        childB->setAttribute ("rest", sceneBPresets[i].rest); 
+                        childB->setAttribute ("legato", sceneBPresets[i].legato);
+                        childB->setAttribute ("rate", sceneBPresets[i].rate); 
+                        childB->setAttribute ("entropy", sceneBPresets[i].entropy); 
+                        childB->setAttribute ("harmony", sceneBPresets[i].harmony);
+                        childB->setAttribute ("chaos", sceneBPresets[i].chaos); 
+                        childB->setAttribute ("octaves", sceneBPresets[i].octaves);
+                        
+                        for (int f = 0; f < 8; ++f) 
+                            childB->setAttribute ("fader_" + juce::String (f), sceneBPresets[i].faders[f]);
+                        for (int l = 0; l < 8; ++l) { 
+                            childB->setAttribute ("lfo_r_" + juce::String (l), sceneBPresets[i].lfoRates[l]); 
+                            childB->setAttribute ("lfo_d_" + juce::String (l), sceneBPresets[i].lfoDepths[l]); 
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 5. Serialize global performance preset recall banks
+        auto* banksNode = xml->createNewChildElement ("GLOBAL_BANKS");
+        if (banksNode != nullptr)
+        {
+            for (int i = 0; i < 8; ++i) {
+                auto* childBank = banksNode->createNewChildElement ("BANK_" + juce::String (i)); 
+                if (childBank != nullptr) {
+                    childBank->setAttribute ("saved", presetSlotsSaved[i]);
+                    if (presetSlotsSaved[i]) {
+                        childBank->setAttribute ("morph", presets[i].rhythmMorph); 
+                        childBank->setAttribute ("rest", presets[i].rest); 
+                        childBank->setAttribute ("legato", presets[i].legato);
+                        childBank->setAttribute ("rate", presets[i].rate); 
+                        childBank->setAttribute ("entropy", presets[i].entropy); 
+                        childBank->setAttribute ("harmony", presets[i].harmony);
+                        childBank->setAttribute ("chaos", presets[i].chaos); 
+                        childBank->setAttribute ("octaves", presets[i].octaves);
+                        for (int f = 0; f < 8; ++f) 
+                            childBank->setAttribute ("fader_" + juce::String (f), presets[i].faders[f]);
+                        for (int l = 0; l < 8; ++l) { 
+                            childBank->setAttribute ("lfo_r_" + juce::String (l), presets[i].lfoRates[l]); 
+                            childBank->setAttribute ("lfo_d_" + juce::String (l), presets[i].lfoDepths[l]); 
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Serialize standalone custom MIDI CC mapping tables
+        auto* mappingsNode = xml->createNewChildElement ("MIDI_CC_MAPPINGS");
+        if (mappingsNode != nullptr)
+        {
+            for (int i = 0; i < 18; ++i)
+            {
+                mappingsNode->setAttribute ("param_" + juce::String (i), midiCcMappings[i].load());
+            }
+        }
+        
+        copyXmlToBinary (*xml, destData);
+    }
+}
+
+void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
+{
+    std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
+    if (xmlState != nullptr && xmlState->hasTagName (apvts.state.getType())) {
+        apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
+        
+        // 1. Restore active workspace focus and presence flags
+        isSceneBActiveAnchor.store (xmlState->getBoolAttribute ("isSceneBActiveAnchor", false));
+        hasSceneA = xmlState->getBoolAttribute ("hasSceneA", false);
+        hasSceneB = xmlState->getBoolAttribute ("hasSceneB", false);
+
+        // Deserialization of ADSR variables
+        voice1.attack = static_cast<float> (xmlState->getDoubleAttribute ("v1Attack", 0.01));
+        voice1.decay = static_cast<float> (xmlState->getDoubleAttribute ("v1Decay", 0.5));
+        voice1.sustain = static_cast<float> (xmlState->getDoubleAttribute ("v1Sustain", 0.7));
+        voice1.release = static_cast<float> (xmlState->getDoubleAttribute ("v1Release", 0.3));
+
+        voice2.attack = static_cast<float> (xmlState->getDoubleAttribute ("v2Attack", 0.01));
+        voice2.decay = static_cast<float> (xmlState->getDoubleAttribute ("v2Decay", 0.5));
+        voice2.sustain = static_cast<float> (xmlState->getDoubleAttribute ("v2Sustain", 0.7));
+        voice2.release = static_cast<float> (xmlState->getDoubleAttribute ("v2Release", 0.3));
+
+        // 2. Deserialization of current active Scene A state
+        if (auto* activeSceneANode = xmlState->getChildByName ("CURRENT_SCENE_A"))
+        {
+            sceneA.rhythmMorph = static_cast<float> (activeSceneANode->getDoubleAttribute ("morph"));
+            sceneA.rest = static_cast<float> (activeSceneANode->getDoubleAttribute ("rest"));
+            sceneA.legato = static_cast<float> (activeSceneANode->getDoubleAttribute ("legato"));
+            sceneA.rate = static_cast<float> (activeSceneANode->getDoubleAttribute ("rate"));
+            sceneA.entropy = static_cast<float> (activeSceneANode->getDoubleAttribute ("entropy"));
+            sceneA.harmony = static_cast<float> (activeSceneANode->getDoubleAttribute ("harmony"));
+            sceneA.chaos = static_cast<float> (activeSceneANode->getDoubleAttribute ("chaos"));
+            sceneA.octaves = static_cast<float> (activeSceneANode->getDoubleAttribute ("octaves"));
+            for (int f = 0; f < 8; ++f) 
+                sceneA.faders[f] = static_cast<float> (activeSceneANode->getDoubleAttribute ("fader_" + juce::String (f), 1.0f));
+            for (int l = 0; l < 8; ++l) {
+                sceneA.lfoRates[l] = activeSceneANode->getIntAttribute ("lfo_r_" + juce::String (l));
+                sceneA.lfoDepths[l] = static_cast<float> (activeSceneANode->getDoubleAttribute ("lfo_d_" + juce::String (l)));
+            }
+        }
+
+        // 3. Deserialization of current active Scene B state
+        if (auto* activeSceneBNode = xmlState->getChildByName ("CURRENT_SCENE_B"))
+        {
+            sceneB.rhythmMorph = static_cast<float> (activeSceneBNode->getDoubleAttribute ("morph"));
+            sceneB.rest = static_cast<float> (activeSceneBNode->getDoubleAttribute ("rest"));
+            sceneB.legato = static_cast<float> (activeSceneBNode->getDoubleAttribute ("legato"));
+            sceneB.rate = static_cast<float> (activeSceneBNode->getDoubleAttribute ("rate"));
+            sceneB.entropy = static_cast<float> (activeSceneBNode->getDoubleAttribute ("entropy"));
+            sceneB.harmony = static_cast<float> (activeSceneBNode->getDoubleAttribute ("harmony"));
+            sceneB.chaos = static_cast<float> (activeSceneBNode->getDoubleAttribute ("chaos"));
+            sceneB.octaves = static_cast<float> (activeSceneBNode->getDoubleAttribute ("octaves"));
+            for (int f = 0; f < 8; ++f) 
+                sceneB.faders[f] = static_cast<float> (activeSceneBNode->getDoubleAttribute ("fader_" + juce::String (f), 1.0f));
+            for (int l = 0; l < 8; ++l) {
+                sceneB.lfoRates[l] = activeSceneBNode->getIntAttribute ("lfo_r_" + juce::String (l));
+                sceneB.lfoDepths[l] = static_cast<float> (activeSceneBNode->getDoubleAttribute ("lfo_d_" + juce::String (l)));
+            }
+        }
+
+        // 4. Deserialization of slot presets matrices
+        if (auto* presetsNodeA = xmlState->getChildByName ("SCENE_A_PRESETS")) {
+            for (int i = 0; i < 8; ++i) {
+                if (auto* childA = presetsNodeA->getChildByName ("SLOT_" + juce::String (i))) {
+                    sceneASlotsSaved[i] = childA->getBoolAttribute ("saved");
+                    if (sceneASlotsSaved[i]) {
+                        sceneAPresets[i].rhythmMorph = static_cast<float> (childA->getDoubleAttribute ("morph")); 
+                        sceneAPresets[i].rest = static_cast<float> (childA->getDoubleAttribute ("rest")); 
+                        sceneAPresets[i].legato = static_cast<float> (childA->getDoubleAttribute ("legato"));
+                        sceneAPresets[i].rate = static_cast<float> (childA->getDoubleAttribute ("rate")); 
+                        sceneAPresets[i].entropy = static_cast<float> (childA->getDoubleAttribute ("entropy")); 
+                        sceneAPresets[i].harmony = static_cast<float> (childA->getDoubleAttribute ("harmony"));
+                        sceneAPresets[i].chaos = static_cast<float> (childA->getDoubleAttribute ("chaos")); 
+                        sceneAPresets[i].octaves = static_cast<float> (childA->getDoubleAttribute ("octaves"));
+                        for (int f = 0; f < 8; ++f) 
+                            sceneAPresets[i].faders[f] = static_cast<float> (childA->getDoubleAttribute ("fader_" + juce::String (f)));
+                        for (int l = 0; l < 8; ++l) { 
+                            sceneAPresets[i].lfoRates[l] = childA->getIntAttribute ("lfo_r_" + juce::String (l)); 
+                            sceneAPresets[i].lfoDepths[l] = static_cast<float> (childA->getDoubleAttribute ("lfo_d_" + juce::String (l))); 
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (auto* presetsNodeB = xmlState->getChildByName ("SCENE_B_PRESETS")) { 
+            for (int i = 0; i < 8; ++i) {
+                if (auto* childB = presetsNodeB->getChildByName ("SLOT_" + juce::String (i))) {
+                    sceneBSlotsSaved[i] = childB->getBoolAttribute ("saved");
+                    if (sceneBSlotsSaved[i]) {
+                        sceneBPresets[i].rhythmMorph = static_cast<float> (childB->getDoubleAttribute ("morph")); 
+                        sceneBPresets[i].rest = static_cast<float> (childB->getDoubleAttribute ("rest")); 
+                        sceneBPresets[i].legato = static_cast<float> (childB->getDoubleAttribute ("legato"));
+                        sceneBPresets[i].rate = static_cast<float> (childB->getDoubleAttribute ("rate")); 
+                        sceneBPresets[i].entropy = static_cast<float> (childB->getDoubleAttribute ("entropy")); 
+                        sceneBPresets[i].harmony = static_cast<float> (childB->getDoubleAttribute ("harmony"));
+                        sceneBPresets[i].chaos = static_cast<float> (childB->getDoubleAttribute ("chaos")); 
+                        sceneBPresets[i].octaves = static_cast<float> (childB->getDoubleAttribute ("octaves"));
+                        for (int f = 0; f < 8; ++f) 
+                            sceneBPresets[i].faders[f] = static_cast<float> (childB->getDoubleAttribute ("fader_" + juce::String (f)));
+                        for (int l = 0; l < 8; ++l) { 
+                            sceneBPresets[i].lfoRates[l] = childB->getIntAttribute ("lfo_r_" + juce::String (l)); 
+                            sceneBPresets[i].lfoDepths[l] = static_cast<float> (childB->getDoubleAttribute ("lfo_d_" + juce::String (l))); 
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 5. Deserialization of global banks recall slots
+        if (auto* banksNode = xmlState->getChildByName ("GLOBAL_BANKS")) {
+            for (int i = 0; i < 8; ++i) {
+                if (auto* childBank = banksNode->getChildByName ("BANK_" + juce::String (i))) {
+                    presetSlotsSaved[i] = childBank->getBoolAttribute ("saved");
+                    if (presetSlotsSaved[i]) {
+                        presets[i].rhythmMorph = static_cast<float> (childBank->getDoubleAttribute ("morph")); 
+                        presets[i].rest = static_cast<float> (childBank->getDoubleAttribute ("rest")); 
+                        presets[i].legato = static_cast<float> (childBank->getDoubleAttribute ("legato"));
+                        presets[i].rate = static_cast<float> (childBank->getDoubleAttribute ("rate")); 
+                        presets[i].entropy = static_cast<float> (childBank->getDoubleAttribute ("entropy")); 
+                        presets[i].harmony = static_cast<float> (childBank->getDoubleAttribute ("harmony"));
+                        presets[i].chaos = static_cast<float> (childBank->getDoubleAttribute ("chaos")); 
+                        presets[i].octaves = static_cast<float> (childBank->getDoubleAttribute ("octaves"));
+                        for (int f = 0; f < 8; ++f) 
+                            presets[i].faders[f] = static_cast<float> (childBank->getDoubleAttribute ("fader_" + juce::String (f)));
+                        for (int l = 0; l < 8; ++l) { 
+                            presets[i].lfoRates[l] = childBank->getIntAttribute ("lfo_r_" + juce::String (l)); 
+                            presets[i].lfoDepths[l] = static_cast<float> (childBank->getDoubleAttribute ("lfo_d_" + juce::String (l))); 
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Deserialization of standalone custom MIDI CC mappings
+        if (auto* mappingsNode = xmlState->getChildByName ("MIDI_CC_MAPPINGS"))
+        {
+            for (int i = 0; i < 18; ++i)
+            {
+                midiCcMappings[i].store (mappingsNode->getIntAttribute ("param_" + juce::String (i), -1));
+            }
+        }
+    }
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    for (int i = 1; i <= 8; ++i) params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID ("fader" + juce::String (i), 1), "Fader " + juce::String (i), 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::rhythmMorph, "Rhythm Morph", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::rest, "Rest", 0.0f, 1.0f, 0.1f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::legato, "Legato", 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::entropy, "Entropy", -1.0f, 1.0f, 0.0f)); 
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::harmony, "Harmony", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::chaos, "Chaos", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::morph, "Morph Crossfader", 0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (IDs::latch, "Latch Mode", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (IDs::arpSeq, "SEQ/ARP Mode", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (IDs::poly, "Poly Mode", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (IDs::freeze, "Freeze Mode", false));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::rootKey, "Root Key", juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B" }, 0));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::scaleType, "Scale", juce::StringArray { "Major", "Natural Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" }, 1));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::cycleLength, "Cycle Length", juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 2)); 
+    
+    // Updated continuous Float rate dial to map BPM or Synced Subdivision rate dynamically [1.2.3]
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::rate, "BPM or Rate", 0.0f, 1.0f, 0.5f)); 
+    params.push_back (std::make_unique<juce::AudioParameterInt> (IDs::octaves, "Octaves", -3, 3, 0)); 
+    
+    // Theme choices
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::panelTheme, "Panel Theme", juce::StringArray { "Navy", "Monochrome", "Matrix" }, 0));
+
+    // Register Master Parameters [1.2.0]
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterVelocity, "Note Density", 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterSwing, "Master Swing", 0.0f, 1.0f, 0.0f));
+
+    // Register Sync Toggle Parameter [1.2.3]
+    params.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID ("sync", 1), "Sync Mode", true));
+
+    // Register Left Panel Sound Parameters [3]
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::midiInChannel, "MIDI In Channel", juce::StringArray { "Omni", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" }, 0));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::midiOutChannel, "MIDI Out Channel", juce::StringArray { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" }, 0));
+    
+    // Choice items updated to reflect the new 4 tactile button options [3]
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::voice1Synth, "Voice 1 Synth", juce::StringArray { "Analog", "FM", "Resonator", "Pulse" }, 0));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Decay, "Voice 1 Decay", 0.01f, 2.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Timbre, "Voice 1 Timbre", 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Reverb, "Voice 1 Reverb", 0.0f, 1.0f, 0.15f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::voice2Synth, "Voice 2 Synth", juce::StringArray { "Analog", "FM", "Resonator", "Pulse" }, 2));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Decay, "Voice 2 Decay", 0.01f, 2.0f, 0.8f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Timbre, "Voice 2 Timbre", 0.0f, 1.0f, 0.2f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Reverb, "Voice 2 Reverb", 0.0f, 1.0f, 0.3f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::audioRouting, "Audio Routing", juce::StringArray { "Split A->1 / B->2", "Layered (Voice 1)", "External Out Only" }, 0));
+
+    // Register Volume fader parameter per voice [3]
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Gain, "Voice 1 Volume", 0.0f, 1.0f, 0.70f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Gain, "Voice 2 Volume", 0.0f, 1.0f, 0.70f));
+
+    auto regLfo = [&](juce::ParameterID rId, juce::ParameterID dId, juce::String nm) {
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (rId, nm + " LFO Speed", juce::StringArray { "Off", "1/4", "1/8", "1/16", "1/32" }, 0));
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (dId, nm + " LFO Depth", 0.0f, 1.0f, 0.0f));
+    };
+    regLfo (IDs::rhythmMorphLfoRate, IDs::rhythmMorphLfoDepth, "Morph"); regLfo (IDs::restLfoRate, IDs::restLfoDepth, "Rest"); regLfo (IDs::legatoLfoRate, IDs::legatoLfoDepth, "Legato"); regLfo (IDs::rateLfoRate, IDs::rateLfoDepth, "Rate");
+    regLfo (IDs::entropyLfoRate, IDs::entropyLfoDepth, "Entropy"); regLfo (IDs::harmonyLfoRate, IDs::harmonyLfoDepth, "Harmony"); regLfo (IDs::chaosLfoRate, IDs::chaosLfoDepth, "Chaos"); regLfo (IDs::octavesLfoRate, IDs::octavesLfoDepth, "Octaves");
+
+    return { params.begin(), params.end() };
+}
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new PluginProcessor();
+}
