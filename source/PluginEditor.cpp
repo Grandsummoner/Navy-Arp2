@@ -497,6 +497,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     // Release programmatic update protection flag now that initialization and attachments are loaded
     getProperties().set ("isUpdatingProgrammatically", false);
 
+    updateLeftPanelVisibility(); // Initialise visibility of left panel components on startup [3]
+
     startTimerHz (30);
 }
 
@@ -543,6 +545,8 @@ void PluginEditor::toggleLeftPanel()
     // Dynamic symmetrical window width sizing [3]
     int targetW = 1000 + (isLeftPanelOpen ? 300 : 0) + (isHelpPanelOpen ? 300 : 0);
     setSize (targetW, 681);
+
+    updateLeftPanelVisibility(); // Toggle actual component visibilities [3]
 }
 
 void PluginEditor::toggleHelpPanel()
@@ -1479,5 +1483,24 @@ void PluginEditor::updateSliderTextBoxThemeColors()
         k->setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xFF00D2FF));      
         k->setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xFF0F1116)); 
         k->setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack); 
+    }
+}
+
+void PluginEditor::updateLeftPanelVisibility()
+{
+    juce::Component* leftPanelComponents[] = {
+        &midiInBox, &midiOutBox1, &midiOutBox2,
+        &v1AnalogBtn, &v1FmBtn, &v1StringBtn, &v1PulseBtn,
+        &v1AttackKnob, &v1DecayKnob, &v1SustainKnob, &v1ReleaseKnob,
+        &v1TimbreKnob, &v1DelayKnob, &v1ReverbKnob, &v1VolumeKnob,
+        &v2AnalogBtn, &v2FmBtn, &v2StringBtn, &v2PulseBtn,
+        &v2AttackKnob, &v2DecayKnob, &v2SustainKnob, &v2ReleaseKnob,
+        &v2TimbreKnob, &v2DelayKnob, &v2ReverbKnob, &v2VolumeKnob,
+        &audioRoutingBox
+    };
+
+    for (auto* comp : leftPanelComponents)
+    {
+        comp->setVisible (isLeftPanelOpen);
     }
 }

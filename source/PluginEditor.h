@@ -113,6 +113,7 @@ public:
 private:
     void timerCallback() override;
     void updateSliderTextBoxThemeColors(); 
+    void updateLeftPanelVisibility(); // Toggles visibility of left-panel components [3]
 
     // Background Image Container
     juce::Image backgroundImage;
