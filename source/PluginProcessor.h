@@ -41,20 +41,33 @@ namespace IDs
     // Left Panel Sound Engine Parameter IDs
     inline const juce::ParameterID midiInChannel      { "midiInChannel", 1 };
     inline const juce::ParameterID midiOutChannel     { "midiOutChannel", 1 };
-    inline const juce::ParameterID voice1Synth        { "voice1Synth", 1 };
+    
+    // Voice 1 Multi-Select Instrument Parameter IDs [3]
+    inline const juce::ParameterID voice1Analog       { "voice1Analog", 1 };
+    inline const juce::ParameterID voice1Fm           { "voice1Fm", 1 };
+    inline const juce::ParameterID voice1String       { "voice1String", 1 };
+    inline const juce::ParameterID voice1Pulse        { "voice1Pulse", 1 };
+
     inline const juce::ParameterID voice1Attack       { "voice1Attack", 1 };
     inline const juce::ParameterID voice1Decay        { "voice1Decay", 1 };
     inline const juce::ParameterID voice1Sustain      { "voice1Sustain", 1 };
     inline const juce::ParameterID voice1Release      { "voice1Release", 1 };
     inline const juce::ParameterID voice1Timbre       { "voice1Timbre", 1 };
     inline const juce::ParameterID voice1Reverb       { "voice1Reverb", 1 };
-    inline const juce::ParameterID voice2Synth        { "voice2Synth", 1 };
+    
+    // Voice 2 Multi-Select Instrument Parameter IDs [3]
+    inline const juce::ParameterID voice2Analog       { "voice2Analog", 1 };
+    inline const juce::ParameterID voice2Fm           { "voice2Fm", 1 };
+    inline const juce::ParameterID voice2String       { "voice2String", 1 };
+    inline const juce::ParameterID voice2Pulse        { "voice2Pulse", 1 };
+
     inline const juce::ParameterID voice2Attack       { "voice2Attack", 1 };
     inline const juce::ParameterID voice2Decay        { "voice2Decay", 1 };
     inline const juce::ParameterID voice2Sustain      { "voice2Sustain", 1 };
     inline const juce::ParameterID voice2Release      { "voice2Release", 1 };
     inline const juce::ParameterID voice2Timbre       { "voice2Timbre", 1 };
     inline const juce::ParameterID voice2Reverb       { "voice2Reverb", 1 };
+    
     inline const juce::ParameterID audioRouting       { "audioRouting", 1 };
     inline const juce::ParameterID voice1Gain         { "voice1Gain", 1 };
     inline const juce::ParameterID voice2Gain         { "voice2Gain", 1 };
@@ -153,7 +166,7 @@ struct SynthVoice
         }
     }
 
-    float process (int synthType, float timbre)
+    float process (bool analogActive, bool fmActive, bool stringActive, bool pulseActive, float timbre)
     {
         // ADSR State Machine Processing
         double dt = 1.0 / sampleRate;
@@ -194,16 +207,15 @@ struct SynthVoice
 
         if (envVal <= 0.0001f) { envVal = 0.0f; return 0.0f; }
 
-        float output = 0.0f;
+        float totalOutput = 0.0f;
+        int activeCount = 0;
 
-        if (synthType == 0) // Virtual Analog (LPF Sawtooth)
+        // Sync and phase advancement flag for oscillator paths [3]
+        bool needsPhaseAdvance = analogActive || fmActive || pulseActive;
+
+        if (analogActive)
         {
             float wave = 2.0f * phase - 1.0f;
-            
-            phase += phaseIncrement;
-            if (phase >= 1.0f) phase -= 1.0f;
-            
-            // Subtractive resonant filter calculation
             float cutoff = 50.0f + timbre * 4000.0f;
             float wd = juce::MathConstants<float>::twoPi * cutoff / static_cast<float> (sampleRate);
             float g = std::tan (wd * 0.5f);
@@ -213,9 +225,11 @@ struct SynthVoice
             float filterOut = (wave - s1 * resonance) * h + s1;
             s1 = filterOut;
             
-            output = filterOut * envVal;
+            totalOutput += filterOut;
+            activeCount++;
         }
-        else if (synthType == 1) // 2-Operator FM Synthesizer (Metallic Bell/Pluck)
+
+        if (fmActive)
         {
             float modMultiplier = 3.5f; 
             float fmModPhaseIncrement = phaseIncrement * modMultiplier;
@@ -227,12 +241,11 @@ struct SynthVoice
             float modIndex = timbre * 8.0f * envVal;
             
             float carrierPhase = phase + modOut * modIndex * phaseIncrement;
-            output = std::sin (carrierPhase * juce::MathConstants<double>::twoPi) * envVal;
-            
-            phase += phaseIncrement;
-            if (phase >= 1.0f) phase -= 1.0f;
+            totalOutput += std::sin (carrierPhase * juce::MathConstants<double>::twoPi);
+            activeCount++;
         }
-        else if (synthType == 2) // Physical Modeling Resonator (Toned-down stable Karplus-String string)
+
+        if (stringActive)
         {
             int delayLength = static_cast<int> (1.0f / phaseIncrement);
             if (delayLength >= 2048) delayLength = 2047;
@@ -263,15 +276,14 @@ struct SynthVoice
             resBuffer[resWriteIdx] = currentVal;
             resWriteIdx = (resWriteIdx + 1) % 2048;
             
-            output = currentVal * envVal * 0.20f; // Sized down to match normal VA/FM levels
+            totalOutput += currentVal * 0.22f; // Low level string plucked wave
+            activeCount++;
         }
-        else if (synthType == 3) // Pulse Wave (Square with Resonant LPF and PWM)
+
+        if (pulseActive)
         {
             float width = 0.15f + timbre * 0.7f; // PWM sweep from 15% to 85%
             float wave = (phase < width) ? 0.4f : -0.4f;
-            
-            phase += phaseIncrement;
-            if (phase >= 1.0f) phase -= 1.0f;
             
             float cutoff = 80.0f + timbre * 3500.0f;
             float wd = juce::MathConstants<float>::twoPi * cutoff / static_cast<float> (sampleRate);
@@ -282,10 +294,23 @@ struct SynthVoice
             float filterOut = (wave - s1 * resonance) * h + s1;
             s1 = filterOut;
             
-            output = filterOut * envVal * 0.6f;
+            totalOutput += filterOut * 0.6f;
+            activeCount++;
         }
-        
-        return output;
+
+        if (needsPhaseAdvance)
+        {
+            phase += phaseIncrement;
+            if (phase >= 1.0f) phase -= 1.0f;
+        }
+
+        // Apply equal-power normalization scaling to prevent clipping on multiple selections [3]
+        if (activeCount > 1)
+        {
+            totalOutput /= std::sqrt (static_cast<float> (activeCount));
+        }
+
+        return totalOutput * envVal;
     }
 };
 
@@ -463,7 +488,12 @@ public:
     std::atomic<float>* midiInChannelPtr { nullptr };
     std::atomic<float>* midiOutChannelPtr { nullptr };
     
-    std::atomic<float>* voice1SynthPtr { nullptr };
+    // Voice 1 Multi-Select instrument cache pointers [3]
+    std::atomic<float>* voice1AnalogPtr { nullptr };
+    std::atomic<float>* voice1FmPtr { nullptr };
+    std::atomic<float>* voice1StringPtr { nullptr };
+    std::atomic<float>* voice1PulsePtr { nullptr };
+
     std::atomic<float>* voice1AttackPtr { nullptr };
     std::atomic<float>* voice1DecayPtr { nullptr };
     std::atomic<float>* voice1SustainPtr { nullptr };
@@ -471,7 +501,12 @@ public:
     std::atomic<float>* voice1TimbrePtr { nullptr };
     std::atomic<float>* voice1ReverbPtr { nullptr };
     
-    std::atomic<float>* voice2SynthPtr { nullptr };
+    // Voice 2 Multi-Select instrument cache pointers [3]
+    std::atomic<float>* voice2AnalogPtr { nullptr };
+    std::atomic<float>* voice2FmPtr { nullptr };
+    std::atomic<float>* voice2StringPtr { nullptr };
+    std::atomic<float>* voice2PulsePtr { nullptr };
+
     std::atomic<float>* voice2AttackPtr { nullptr };
     std::atomic<float>* voice2DecayPtr { nullptr };
     std::atomic<float>* voice2SustainPtr { nullptr };

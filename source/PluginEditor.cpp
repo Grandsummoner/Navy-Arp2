@@ -350,12 +350,11 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     midiOutBox.addItemList (juce::StringArray { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" }, 1);
     audioRoutingBox.addItemList (juce::StringArray { "Split A->1 / B->2", "Layered (Voice 1)", "External Out Only" }, 1);
 
-    // Symmetrical Tab selection setup for Voice 1 (ANALOG, FM, STRING, PULSE) [3]
+    // Symmetrical Tab selection setup for Voice 1 (Multi-select layout) [3]
     auto setupSynthTab1 = [&](juce::TextButton& btn, juce::String text) {
         addAndMakeVisible (btn);
         btn.setButtonText (text);
         btn.setClickingTogglesState (true);
-        btn.setRadioGroupId (1001);
         btn.setLookAndFeel (&chromaLookAndFeel);
     };
     setupSynthTab1 (v1AnalogBtn, "ANALOG");
@@ -363,17 +362,16 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     setupSynthTab1 (v1StringBtn, "STRING");
     setupSynthTab1 (v1PulseBtn, "PULSE");
 
-    v1AnalogBtn.onClick = [this] { if (v1AnalogBtn.getToggleState()) processor.apvts.getParameter (IDs::voice1Synth.getParamID())->setValueNotifyingHost (0.0f); };
-    v1FmBtn.onClick     = [this] { if (v1FmBtn.getToggleState())     processor.apvts.getParameter (IDs::voice1Synth.getParamID())->setValueNotifyingHost (1.0f / 3.0f); };
-    v1StringBtn.onClick = [this] { if (v1StringBtn.getToggleState()) processor.apvts.getParameter (IDs::voice1Synth.getParamID())->setValueNotifyingHost (2.0f / 3.0f); };
-    v1PulseBtn.onClick  = [this] { if (v1PulseBtn.getToggleState())  processor.apvts.getParameter (IDs::voice1Synth.getParamID())->setValueNotifyingHost (1.0f); };
+    v1AnalogAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice1Analog.getParamID(), v1AnalogBtn);
+    v1FmAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice1Fm.getParamID(), v1FmBtn);
+    v1StringAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice1String.getParamID(), v1StringBtn);
+    v1PulseAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice1Pulse.getParamID(), v1PulseBtn);
 
-    // Symmetrical Tab selection setup for Voice 2 (ANALOG, FM, STRING, PULSE) [3]
+    // Symmetrical Tab selection setup for Voice 2 (Multi-select layout) [3]
     auto setupSynthTab2 = [&](juce::TextButton& btn, juce::String text) {
         addAndMakeVisible (btn);
         btn.setButtonText (text);
         btn.setClickingTogglesState (true);
-        btn.setRadioGroupId (1002);
         btn.setLookAndFeel (&chromaLookAndFeel);
     };
     setupSynthTab2 (v2AnalogBtn, "ANALOG");
@@ -381,12 +379,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     setupSynthTab2 (v2StringBtn, "STRING");
     setupSynthTab2 (v2PulseBtn, "PULSE");
 
-    v2AnalogBtn.onClick = [this] { if (v2AnalogBtn.getToggleState()) processor.apvts.getParameter (IDs::voice2Synth.getParamID())->setValueNotifyingHost (0.0f); };
-    v2FmBtn.onClick     = [this] { if (v2FmBtn.getToggleState())     processor.apvts.getParameter (IDs::voice2Synth.getParamID())->setValueNotifyingHost (1.0f / 3.0f); };
-    v2StringBtn.onClick = [this] { if (v2StringBtn.getToggleState()) processor.apvts.getParameter (IDs::voice2Synth.getParamID())->setValueNotifyingHost (2.0f / 3.0f); };
-    v2PulseBtn.onClick  = [this] { if (v2PulseBtn.getToggleState())  processor.apvts.getParameter (IDs::voice2Synth.getParamID())->setValueNotifyingHost (1.0f); };
+    v2AnalogAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice2Analog.getParamID(), v2AnalogBtn);
+    v2FmAttachment     = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice2Fm.getParamID(), v2FmBtn);
+    v2StringAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice2String.getParamID(), v2StringBtn);
+    v2PulseAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, IDs::voice2Pulse.getParamID(), v2PulseBtn);
 
-    // Rotary Knob Setup for Voice Envelopes and Volume gains (No more faders) [3]
+    // Symmetrical Rotary Knob Setup for Voice Envelopes and Volume gains (No more faders) [3]
     juce::Slider* sls[] = {
         &v1AttackKnob, &v1DecayKnob, &v1SustainKnob, &v1ReleaseKnob, &v1TimbreKnob, &v1ReverbKnob, &v1VolumeKnob,
         &v2AttackKnob, &v2DecayKnob, &v2SustainKnob, &v2ReleaseKnob, &v2TimbreKnob, &v2ReverbKnob, &v2VolumeKnob
@@ -406,7 +404,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         sls[i]->addMouseListener (this, false);
     }
 
-    // Attachments Setup for 14 individual Voice parameters [3]
+    // Attachments Setup for 14 individual Symmetrical Voice parameters [3]
     midiInAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::midiInChannel.getParamID(), midiInBox);
     midiOutAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::midiOutChannel.getParamID(), midiOutBox);
     audioRoutingAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (processor.apvts, IDs::audioRouting.getParamID(), audioRoutingBox);
@@ -1233,13 +1231,13 @@ void PluginEditor::resized()
         midiInBox.setBounds (85, 95, 200, 20);
         midiOutBox.setBounds (85, 135, 200, 20);
 
-        // Voice 1 Symmetrical tactile instrument tabs [3]
+        // Voice 1 Symmetrical layerable tactile instrument tabs [3]
         v1AnalogBtn.setBounds (15, 215, 63, 18);
         v1FmBtn.setBounds (81, 215, 63, 18);
         v1StringBtn.setBounds (147, 215, 63, 18);
         v1PulseBtn.setBounds (213, 215, 63, 18);
 
-        // Voice 1 tactile independent ADSR / Timbre / Reverb / Volume knobs
+        // Voice 1 tactile independent ADSR / Timbre / Reverb / Volume knobs (Rotaries!) [3]
         v1AttackKnob.setBounds  (20,  295, 42, 42);
         v1DecayKnob.setBounds   (85,  295, 42, 42);
         v1SustainKnob.setBounds (150, 295, 42, 42);
@@ -1249,13 +1247,13 @@ void PluginEditor::resized()
         v1ReverbKnob.setBounds  (115, 345, 42, 42);
         v1VolumeKnob.setBounds  (195, 345, 42, 42);
 
-        // Voice 2 Symmetrical tactile instrument tabs [3]
+        // Voice 2 Symmetrical layerable tactile instrument tabs [3]
         v2AnalogBtn.setBounds (15, 415, 63, 18);
         v2FmBtn.setBounds (81, 415, 63, 18);
         v2StringBtn.setBounds (147, 415, 63, 18);
         v2PulseBtn.setBounds (213, 415, 63, 18);
 
-        // Voice 2 tactile independent ADSR / Timbre / Reverb / Volume knobs
+        // Voice 2 tactile independent ADSR / Timbre / Reverb / Volume knobs (Rotaries!) [3]
         v2AttackKnob.setBounds  (20,  495, 42, 42);
         v2DecayKnob.setBounds   (85,  495, 42, 42);
         v2SustainKnob.setBounds (150, 495, 42, 42);
@@ -1354,22 +1352,6 @@ void PluginEditor::timerCallback()
         {
             faders[i]->setValue (interpolate (processor.sceneA.faders[i], processor.sceneB.faders[i]), juce::dontSendNotification);
         }
-    }
-
-    // Synchronize current Synthesis Button Tab Highlight states [3]
-    if (isLeftPanelOpen)
-    {
-        int v1SynthVal = static_cast<int> (std::round (processor.voice1SynthPtr->load()));
-        v1AnalogBtn.setToggleState (v1SynthVal == 0, juce::dontSendNotification);
-        v1FmBtn.setToggleState (v1SynthVal == 1, juce::dontSendNotification);
-        v1StringBtn.setToggleState (v1SynthVal == 2, juce::dontSendNotification);
-        v1PulseBtn.setToggleState (v1SynthVal == 3, juce::dontSendNotification);
-
-        int v2SynthVal = static_cast<int> (std::round (processor.voice2SynthPtr->load()));
-        v2AnalogBtn.setToggleState (v2SynthVal == 0, juce::dontSendNotification);
-        v2FmBtn.setToggleState (v2SynthVal == 1, juce::dontSendNotification);
-        v2StringBtn.setToggleState (v2SynthVal == 2, juce::dontSendNotification);
-        v2PulseBtn.setToggleState (v2SynthVal == 3, juce::dontSendNotification);
     }
 
     getProperties().set ("isUpdatingProgrammatically", false);

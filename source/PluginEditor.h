@@ -79,7 +79,7 @@ public:
     juce::ComboBox midiInBox, midiOutBox;
     juce::ComboBox audioRoutingBox;
 
-    // Symmetrical Button Picks for Synthesis Models (No more dropdowns) [3]
+    // Symmetrical Button Picks for Synthesis Models (Layerable toggles) [3]
     juce::TextButton v1AnalogBtn, v1FmBtn, v1StringBtn, v1PulseBtn;
     juce::TextButton v2AnalogBtn, v2FmBtn, v2StringBtn, v2PulseBtn;
 
@@ -135,8 +135,13 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> midiInAttachment, midiOutAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> audioRoutingAttachment;
 
+    // Multi-Select Layerable Instrument attachments [3]
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> v1AnalogAttachment, v1FmAttachment, v1StringAttachment, v1PulseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> v2AnalogAttachment, v2FmAttachment, v2StringAttachment, v2PulseAttachment;
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> v1AttackAttachment, v1DecayAttachment, v1SustainAttachment, v1ReleaseAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> v1TimbreAttachment, v1ReverbAttachment, v1VolumeAttachment;
+    
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> v2AttackAttachment, v2DecayAttachment, v2SustainAttachment, v2ReleaseAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> v2TimbreAttachment, v2ReverbAttachment, v2VolumeAttachment;
 

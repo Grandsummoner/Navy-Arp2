@@ -48,23 +48,31 @@ PluginProcessor::PluginProcessor()
     midiInChannelPtr  = apvts.getRawParameterValue (IDs::midiInChannel.getParamID());
     midiOutChannelPtr = apvts.getRawParameterValue (IDs::midiOutChannel.getParamID());
     
-    // Voice 1 parameters cached
-    voice1SynthPtr    = apvts.getRawParameterValue (IDs::voice1Synth.getParamID());
-    voice1AttackPtr   = apvts.getRawParameterValue (IDs::voice1Attack.getParamID());
-    voice1DecayPtr    = apvts.getRawParameterValue (IDs::voice1Decay.getParamID());
-    voice1SustainPtr  = apvts.getRawParameterValue (IDs::voice1Sustain.getParamID());
-    voice1ReleasePtr  = apvts.getRawParameterValue (IDs::voice1Release.getParamID());
-    voice1TimbrePtr   = apvts.getRawParameterValue (IDs::voice1Timbre.getParamID());
-    voice1ReverbPtr   = apvts.getRawParameterValue (IDs::voice1Reverb.getParamID());
+    // Voice 1 Multi-Select instrument cache pointers
+    voice1AnalogPtr  = apvts.getRawParameterValue (IDs::voice1Analog.getParamID());
+    voice1FmPtr      = apvts.getRawParameterValue (IDs::voice1Fm.getParamID());
+    voice1StringPtr  = apvts.getRawParameterValue (IDs::voice1String.getParamID());
+    voice1PulsePtr   = apvts.getRawParameterValue (IDs::voice1Pulse.getParamID());
+
+    voice1AttackPtr  = apvts.getRawParameterValue (IDs::voice1Attack.getParamID());
+    voice1DecayPtr   = apvts.getRawParameterValue (IDs::voice1Decay.getParamID());
+    voice1SustainPtr = apvts.getRawParameterValue (IDs::voice1Sustain.getParamID());
+    voice1ReleasePtr = apvts.getRawParameterValue (IDs::voice1Release.getParamID());
+    voice1TimbrePtr  = apvts.getRawParameterValue (IDs::voice1Timbre.getParamID());
+    voice1ReverbPtr  = apvts.getRawParameterValue (IDs::voice1Reverb.getParamID());
     
-    // Voice 2 parameters cached
-    voice2SynthPtr    = apvts.getRawParameterValue (IDs::voice2Synth.getParamID());
-    voice2AttackPtr   = apvts.getRawParameterValue (IDs::voice2Attack.getParamID());
-    voice2DecayPtr    = apvts.getRawParameterValue (IDs::voice2Decay.getParamID());
-    voice2SustainPtr  = apvts.getRawParameterValue (IDs::voice2Sustain.getParamID());
-    voice2ReleasePtr  = apvts.getRawParameterValue (IDs::voice2Release.getParamID());
-    voice2TimbrePtr   = apvts.getRawParameterValue (IDs::voice2Timbre.getParamID());
-    voice2ReverbPtr   = apvts.getRawParameterValue (IDs::voice2Reverb.getParamID());
+    // Voice 2 Multi-Select instrument cache pointers
+    voice2AnalogPtr  = apvts.getRawParameterValue (IDs::voice2Analog.getParamID());
+    voice2FmPtr      = apvts.getRawParameterValue (IDs::voice2Fm.getParamID());
+    voice2StringPtr  = apvts.getRawParameterValue (IDs::voice2String.getParamID());
+    voice2PulsePtr   = apvts.getRawParameterValue (IDs::voice2Pulse.getParamID());
+
+    voice2AttackPtr  = apvts.getRawParameterValue (IDs::voice2Attack.getParamID());
+    voice2DecayPtr   = apvts.getRawParameterValue (IDs::voice2Decay.getParamID());
+    voice2SustainPtr = apvts.getRawParameterValue (IDs::voice2Sustain.getParamID());
+    voice2ReleasePtr = apvts.getRawParameterValue (IDs::voice2Release.getParamID());
+    voice2TimbrePtr  = apvts.getRawParameterValue (IDs::voice2Timbre.getParamID());
+    voice2ReverbPtr  = apvts.getRawParameterValue (IDs::voice2Reverb.getParamID());
     
     audioRoutingPtr   = apvts.getRawParameterValue (IDs::audioRouting.getParamID());
     voice1GainPtr     = apvts.getRawParameterValue (IDs::voice1Gain.getParamID());
@@ -619,11 +627,22 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     voice2.sustain = voice2SustainPtr->load();
     voice2.release = voice2ReleasePtr->load();
 
+    // Load active layered instrument picks per voice [3]
+    bool v1Analog = voice1AnalogPtr->load() > 0.5f;
+    bool v1Fm     = voice1FmPtr->load() > 0.5f;
+    bool v1String = voice1StringPtr->load() > 0.5f;
+    bool v1Pulse  = voice1PulsePtr->load() > 0.5f;
+
+    bool v2Analog = voice2AnalogPtr->load() > 0.5f;
+    bool v2Fm     = voice2FmPtr->load() > 0.5f;
+    bool v2String = voice2StringPtr->load() > 0.5f;
+    bool v2Pulse  = voice2PulsePtr->load() > 0.5f;
+
     for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
     {
-        // Render raw synthesis samples (Volume controlled per voice) [3]
-        float s1 = voice1.process (static_cast<int> (voice1SynthPtr->load()), voice1TimbrePtr->load()) * v1Vol;
-        float s2 = voice2.process (static_cast<int> (voice2SynthPtr->load()), voice2TimbrePtr->load()) * v2Vol;
+        // Render raw synthesis samples (Volume controlled and layered per voice) [3]
+        float s1 = voice1.process (v1Analog, v1Fm, v1String, v1Pulse, voice1TimbrePtr->load()) * v1Vol;
+        float s2 = voice2.process (v2Analog, v2Fm, v2String, v2Pulse, voice2TimbrePtr->load()) * v2Vol;
 
         float drySample = 0.0f;
         float wetInput = 0.0f;
@@ -681,8 +700,17 @@ void PluginProcessor::triggerDiatonicChordPad (int padIndex)
     int baseRoot = 48 + rootIdx, r = getScalePitch (padIndex), t = getScalePitch (padIndex + 2), f = getScalePitch (padIndex + 4);
 
     std::vector<int> newChord;
-    if (activeHarmony >= 0.34f && activeHarmony < 0.67f) { t = getScalePitch (padIndex + 3); newChord = { baseRoot + r, baseRoot + t, baseRoot + f }; }
-    else if (activeHarmony >= 0.67f) { int s = getScalePitch (padIndex + 6); newChord = { baseRoot + r, baseRoot + t, baseRoot + f, baseRoot + s }; }
+    float morphVal = morphPtr->load();
+    auto applyLfo = [&](int index, float baseVal, std::atomic<float>* rPtr, std::atomic<float>* dPtr, float minVal, float maxVal) -> float {
+        int rateChoice = static_cast<int> (rPtr->load()); float depth = dPtr->load();
+        if (rateChoice == 0) return baseVal;
+        double divPPQ = (rateChoice == 1) ? 1.0 : (rateChoice == 2) ? 0.5 : (rateChoice == 3) ? 0.25 : 0.125, periodSamples = mSampleRate * (60.0 / 120.0) * divPPQ;
+        return baseVal;
+    };
+    float currentHarmony = applyLfo (5, sceneA.harmony, lfoRatePtrs[5], lfoDepthPtrs[5], 0.0f, 1.0f);
+
+    if (currentHarmony >= 0.34f && currentHarmony < 0.67f) { t = getScalePitch (padIndex + 3); newChord = { baseRoot + r, baseRoot + t, baseRoot + f }; }
+    else if (currentHarmony >= 0.67f) { int s = getScalePitch (padIndex + 6); newChord = { baseRoot + r, baseRoot + t, baseRoot + f, baseRoot + s }; }
     else { newChord = { baseRoot + r, baseRoot + t, baseRoot + f }; }
 
     if (!lastChordPitches.empty() && newChord.size() == lastChordPitches.size()) {
@@ -822,12 +850,12 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
     
     if (xml != nullptr)
     {
-        // 1. Serialize active workspace focus and presence flags
+        // Serialize active workspace focus and presence flags
         xml->setAttribute ("isSceneBActiveAnchor", isSceneBActiveAnchor.load());
         xml->setAttribute ("hasSceneA", hasSceneA);
         xml->setAttribute ("hasSceneB", hasSceneB);
 
-        // 2. Serialize current active Scene A profile
+        // Serialize current active Scene A profile
         auto* activeSceneANode = xml->createNewChildElement ("CURRENT_SCENE_A");
         if (activeSceneANode != nullptr)
         {
@@ -847,7 +875,7 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
             }
         }
 
-        // 3. Serialize current active Scene B profile
+        // Serialize current active Scene B profile
         auto* activeSceneBNode = xml->createNewChildElement ("CURRENT_SCENE_B");
         if (activeSceneBNode != nullptr)
         {
@@ -867,7 +895,7 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
             }
         }
 
-        // 4. Serialize scene presets (Slot matrices)
+        // Serialize scene presets (Slot matrices)
         auto* presetsNodeA = xml->createNewChildElement ("SCENE_A_PRESETS");
         auto* presetsNodeB = xml->createNewChildElement ("SCENE_B_PRESETS");
         
@@ -920,7 +948,7 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
             }
         }
         
-        // 5. Serialize global performance preset recall banks
+        // Serialize global performance preset recall banks
         auto* banksNode = xml->createNewChildElement ("GLOBAL_BANKS");
         if (banksNode != nullptr)
         {
@@ -948,7 +976,7 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
             }
         }
 
-        // 6. Serialize standalone custom MIDI CC mapping tables
+        // Serialize standalone custom MIDI CC mapping tables
         auto* mappingsNode = xml->createNewChildElement ("MIDI_CC_MAPPINGS");
         if (mappingsNode != nullptr)
         {
@@ -968,12 +996,12 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
     if (xmlState != nullptr && xmlState->hasTagName (apvts.state.getType())) {
         apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
         
-        // 1. Restore active workspace focus and presence flags
+        // Restore active workspace focus and presence flags
         isSceneBActiveAnchor.store (xmlState->getBoolAttribute ("isSceneBActiveAnchor", false));
         hasSceneA = xmlState->getBoolAttribute ("hasSceneA", false);
         hasSceneB = xmlState->getBoolAttribute ("hasSceneB", false);
 
-        // 2. Deserialization of current active Scene A state
+        // Deserialization of current active Scene A state
         if (auto* activeSceneANode = xmlState->getChildByName ("CURRENT_SCENE_A"))
         {
             sceneA.rhythmMorph = static_cast<float> (activeSceneANode->getDoubleAttribute ("morph"));
@@ -992,7 +1020,7 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
             }
         }
 
-        // 3. Deserialization of current active Scene B state
+        // Deserialization of current active Scene B state
         if (auto* activeSceneBNode = xmlState->getChildByName ("CURRENT_SCENE_B"))
         {
             sceneB.rhythmMorph = static_cast<float> (activeSceneBNode->getDoubleAttribute ("morph"));
@@ -1011,7 +1039,7 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
             }
         }
 
-        // 4. Deserialization of slot presets matrices
+        // Deserialization of slot presets matrices
         if (auto* presetsNodeA = xmlState->getChildByName ("SCENE_A_PRESETS")) {
             for (int i = 0; i < 8; ++i) {
                 if (auto* childA = presetsNodeA->getChildByName ("SLOT_" + juce::String (i))) {
@@ -1060,7 +1088,7 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
             }
         }
         
-        // 5. Deserialization of global banks recall slots
+        // Deserialization of global banks recall slots
         if (auto* banksNode = xmlState->getChildByName ("GLOBAL_BANKS")) {
             for (int i = 0; i < 8; ++i) {
                 if (auto* childBank = banksNode->getChildByName ("BANK_" + juce::String (i))) {
@@ -1085,7 +1113,7 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
             }
         }
 
-        // 6. Deserialization of standalone custom MIDI CC mappings
+        // Deserialization of standalone custom MIDI CC mappings
         if (auto* mappingsNode = xmlState->getChildByName ("MIDI_CC_MAPPINGS"))
         {
             for (int i = 0; i < 18; ++i)
@@ -1134,7 +1162,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::midiOutChannel, "MIDI Out Channel", juce::StringArray { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" }, 0));
     
     // Choice items updated to reflect the new 4 tactile button options [3]
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::voice1Synth, "Voice 1 Synth", juce::StringArray { "Analog", "FM", "Resonator", "Pulse" }, 0));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1Analog, "Voice 1 Analog Engine", true));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1Fm, "Voice 1 FM Engine", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1String, "Voice 1 Resonator Engine", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice1Pulse, "Voice 1 Pulse Engine", false));
+
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Attack, "Voice 1 Attack", 0.001f, 2.0f, 0.01f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Decay, "Voice 1 Decay", 0.01f, 3.0f, 0.35f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Sustain, "Voice 1 Sustain", 0.0f, 1.0f, 0.70f));
@@ -1142,7 +1174,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Timbre, "Voice 1 Timbre", 0.0f, 1.0f, 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Reverb, "Voice 1 Reverb", 0.0f, 1.0f, 0.15f));
     
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::voice2Synth, "Voice 2 Synth", juce::StringArray { "Analog", "FM", "Resonator", "Pulse" }, 2));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2Analog, "Voice 2 Analog Engine", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2Fm, "Voice 2 FM Engine", false));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2String, "Voice 2 Resonator Engine", true));
+    params.push_back (std::make_unique<juce::AudioParameterBool> (IDs::voice2Pulse, "Voice 2 Pulse Engine", false));
+
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Attack, "Voice 2 Attack", 0.001f, 2.0f, 0.01f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Decay, "Voice 2 Decay", 0.01f, 3.0f, 0.35f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Sustain, "Voice 2 Sustain", 0.0f, 1.0f, 0.70f));
@@ -1152,9 +1188,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::audioRouting, "Audio Routing", juce::StringArray { "Split A->1 / B->2", "Layered (Voice 1)", "External Out Only" }, 0));
 
-    // Register Volume fader parameter per voice [3]
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Gain, "Voice 1 Volume", 0.0f, 1.0f, 0.70f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Gain, "Voice 2 Volume", 0.0f, 1.0f, 0.70f));
+    // Default Volume fader parameter per voice set exactly to safe 20% level [3]
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice1Gain, "Voice 1 Volume", 0.0f, 1.0f, 0.20f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::voice2Gain, "Voice 2 Volume", 0.0f, 1.0f, 0.20f));
 
     auto regLfo = [&](juce::ParameterID rId, juce::ParameterID dId, juce::String nm) {
         params.push_back (std::make_unique<juce::AudioParameterChoice> (rId, nm + " LFO Speed", juce::StringArray { "Off", "1/4", "1/8", "1/16", "1/32" }, 0));
