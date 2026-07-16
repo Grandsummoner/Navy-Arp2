@@ -451,7 +451,6 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     v1TimbreAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::voice1Timbre.getParamID(), v1TimbreSlider);
     v1ReverbAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::voice1Reverb.getParamID(), v1ReverbSlider);
-    v2DecayAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::voice2Decay.getParamID(), v2DecaySlider);
     v2TimbreAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::voice2Timbre.getParamID(), v2TimbreSlider);
     v2ReverbAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::voice2Reverb.getParamID(), v2ReverbSlider);
     v1GainAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, IDs::voice1Gain.getParamID(), v1GainSlider);
@@ -514,7 +513,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         &fader1, &fader2, &fader3, &fader4, &fader5, &fader6, &fader7, &fader8,
         &rhythmMorphKnob, &restKnob, &legatoKnob, &rateKnob,
         &entropyKnob, &harmonyKnob, &chaosKnob, &octavesKnob,
-        &masterVelocityKnob, &masterSwingKnob, &morphCrossfader
+        &masterVelocityKnob, &masterSwingKnob, &morphCrossfader, &v1GainSlider, &v2GainSlider
     };
     for (auto* s : allSliders) {
         s->toFront (false);
