@@ -321,7 +321,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 #endif
     int numSamples = buffer.getNumSamples(); 
 
-    // Synchronize LFO and sequencer clock based on Sync Mode toggle [1.2.3]
+    // Synchronize LFO and sequencer clock based on Sync Mode toggle
     auto* syncPtr = apvts.getRawParameterValue ("sync");
     bool syncActive = (syncPtr != nullptr && syncPtr->load() > 0.5f);
     
@@ -329,7 +329,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     if (syncActive) {
         activeBpm = hostBpm;
     } else {
-        // Map continuous Float rate parameter (0.0 to 1.0) to smooth free-run BPM: 40 to 240 [1.2.3]
+        // Map continuous Float rate parameter (0.0 to 1.0) to smooth free-run BPM: 40 to 240
         activeBpm = 40.0 + (ratePtr->load() * 200.0); 
     }
 
@@ -421,10 +421,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         } else if (msg.isNoteOff() && !isFreezeActive) {
             int note = msg.getNoteNumber(); activeHeldNotes.erase (std::remove (activeHeldNotes.begin(), activeHeldNotes.end(), note), activeHeldNotes.end());
             
-            // Call ADSR note-off release dynamically [3]
-            voice1.releaseNote();
-            voice2.releaseNote();
-
+            // Envelope releases are triggered strictly by step note-offs, NOT direct keyboard releases, to protect arpeggios [3]
             if (activeHeldNotes.empty()) isFirstNoteOfNewChord = true;
         }
     }
@@ -1176,7 +1173,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::scaleType, "Scale", juce::StringArray { "Major", "Natural Minor", "Pentatonic Minor", "Pentatonic Major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic Minor", "Melodic Minor" }, 1));
     params.push_back (std::make_unique<juce::AudioParameterChoice> (IDs::cycleLength, "Cycle Length", juce::StringArray { "1 Bar", "2 Bars", "4 Bars", "8 Bars" }, 2)); 
     
-    // Updated continuous Float rate dial to map BPM or Synced Subdivision rate dynamically [1.2.3]
+    // Updated continuous Float rate dial to map BPM or Synced Subdivision rate dynamically
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::rate, "BPM or Rate", 0.0f, 1.0f, 0.5f)); 
     params.push_back (std::make_unique<juce::AudioParameterInt> (IDs::octaves, "Octaves", -3, 3, 0)); 
     
@@ -1187,7 +1184,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterVelocity, "Note Density", 0.0f, 1.0f, 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (IDs::masterSwing, "Master Swing", 0.0f, 1.0f, 0.0f));
 
-    // Register Sync Toggle Parameter [1.2.3]
+    // Register Sync Toggle Parameter
     params.push_back (std::make_unique<juce::AudioParameterBool> (juce::ParameterID ("sync", 1), "Sync Mode", true));
 
     // Register Left Panel Sound Parameters [3]
