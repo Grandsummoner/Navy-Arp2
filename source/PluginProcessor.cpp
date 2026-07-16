@@ -118,6 +118,15 @@ void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     std::fill (std::begin (delayBufferR), std::end (delayBufferR), 0.0f);
     delayWriteIdx = 0;
 
+    // Configure the integrated reverb parameters
+    reverbEffect.setSampleRate (sampleRate);
+    juce::Reverb::Parameters reverbParams;
+    reverbParams.roomSize = 0.75f;
+    reverbParams.damping = 0.40f;
+    reverbParams.wetLevel = 0.35f;
+    reverbParams.dryLevel = 0.0f; // Handled separately in the processing buffer
+    reverbEffect.setParameters (reverbParams);
+
     juce::ignoreUnused (samplesPerBlock);
 }
 
@@ -321,6 +330,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     if (auto* playhead = getPlayHead()) { juce::AudioPlayHead::CurrentPositionInfo info; if (playhead->getCurrentPositionInfo (info)) { isPlaying = info.isPlaying; hostBpm = info.bpm; mSongPositionPPQ = info.ppqPosition; } }
 #endif
     int numSamples = buffer.getNumSamples(); 
+
+    // Create a temporary buffer to accumulate the wet reverb sends
+    juce::AudioBuffer<float> reverbBuffer (2, numSamples);
+    reverbBuffer.clear();
 
     // Synchronize LFO and sequencer clock based on Sync Mode toggle [1.2.3]
     auto* syncPtr = apvts.getRawParameterValue ("sync");
@@ -703,7 +716,16 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
         channelL[sampleIdx] = drySample + (delayOutL * 0.4f);
         channelR[sampleIdx] = drySample + (delayOutR * 0.4f);
+
+        // Accumulate wet input into reverb buffer
+        reverbBuffer.setSample (0, sampleIdx, wetInput);
+        reverbBuffer.setSample (1, sampleIdx, wetInput);
     }
+
+    // Process the accumulated wet reverb signal and add back to the output channels
+    reverbEffect.processStereo (reverbBuffer.getWritePointer (0), reverbBuffer.getWritePointer (1), numSamples);
+    buffer.addFrom (0, 0, reverbBuffer.getReadPointer (0), numSamples);
+    buffer.addFrom (1, 0, reverbBuffer.getReadPointer (1), numSamples);
 }
 
 void PluginProcessor::triggerDiatonicChordPad (int padIndex)

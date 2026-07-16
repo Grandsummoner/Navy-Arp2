@@ -295,7 +295,7 @@ struct SynthVoice
             resBuffer[resWriteIdx] = currentVal;
             resWriteIdx = (resWriteIdx + 1) % 2048;
             
-            totalOutput += currentVal * 0.22f; // Low level string plucked wave
+            totalOutput += currentVal * 1.00f; // Symmetrical pluck output volume scale (boosted from 0.22f)
             activeCount++;
         }
 
@@ -610,6 +610,8 @@ private:
     float delayBufferL[44100] { 0.0f };
     float delayBufferR[44100] { 0.0f };
     int delayWriteIdx = 0;
+
+    juce::Reverb reverbEffect; // Active integrated reverb processor
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };
